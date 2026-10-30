@@ -10,9 +10,9 @@ const figtree = Figtree({
 })
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.app",
+  title: "A2SP · Лиды и сделки",
+  description: "CRM рабочего пространства архитектурно-строительной компании A2SP",
+  generator: "A2SP CRM",
 }
 
 export default function RootLayout({
@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${figtree.variable} antialiased`}>
+    <html lang="ru" className={`${figtree.variable} antialiased`}>
       <body className="font-sans">{children}</body>
     </html>
   )
