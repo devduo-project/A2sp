@@ -16,9 +16,9 @@
 .view-toggle button { display: grid; place-items: center; size: 32px; padding: 0 9px; border: 0; border-radius: 7px; color: var(--muted-foreground); background: transparent; cursor: pointer; }
 .view-toggle button.selected { color: var(--foreground); background: color-mix(in oklab, var(--primary) 12%, var(--card)); box-shadow: 0 2px 8px color-mix(in oklab, var(--foreground) 10%, transparent); }
 .list-view .pipeline { display: flex; flex-direction: column; min-width: 0; gap: 8px; }
-.list-view .pipeline-column { width: 100%; flex: none; display: contents; }
-.list-view .pipeline-column .column-heading { display: none; }
-.list-view .pipeline-column .column-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 0; }
+.list-view .pipeline-column { width: 100%; flex: none; }
+.list-view .pipeline-column .column-heading { display: flex; }
+.list-view .pipeline-column .column-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 8px; }
 .list-view .column-heading { min-height: 34px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in oklab, var(--card) 70%, transparent); }
 .list-view .column-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 8px; }
 .list-view .lead-card { min-height: 0; text-align: left; }
