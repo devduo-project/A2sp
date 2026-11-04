@@ -66,3 +66,12 @@
 @media (max-width: 1100px) { .directory-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px) { .directory-grid { grid-template-columns: 1fr; } .floating-navbar-link { padding: 7px 10px; font-size: 13px; } }
 @media (prefers-reduced-motion: reduce) { .floating-navbar, .floating-navbar-list, .floating-navbar-indicator, .floating-navbar-link { transition: none !important; } }
+
+.pipeline-column{border-radius:18px;transition:background-color .2s ease,box-shadow .2s ease}
+.pipeline-column.is-drop-target{background:color-mix(in oklab,var(--primary) 6%,transparent);box-shadow:0 0 0 6px color-mix(in oklab,var(--primary) 6%,transparent),0 0 0 7px color-mix(in oklab,var(--primary) 18%,transparent)}
+.lead-card[draggable="true"]{cursor:grab}
+.lead-card[draggable="true"]:active{cursor:grabbing}
+.lead-card.is-dragging{opacity:.45;transform:scale(.97) rotate(-1deg);box-shadow:none;border-style:dashed}
+.drop-indicator{height:3px;flex:none;border-radius:999px;background:var(--primary);box-shadow:0 0 0 3px color-mix(in oklab,var(--primary) 16%,transparent);animation:drop-indicator-in .16s ease-out}
+@keyframes drop-indicator-in{from{opacity:0;transform:scaleX(.5)}to{opacity:1;transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){.drop-indicator{animation:none}.lead-card.is-dragging{transform:none}}
