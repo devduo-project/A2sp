@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Building2, Copy, Mail, MapPin, Phone, Plus, Users, X } from "lucide-react"
 import { toast } from "sonner"
@@ -13,7 +13,6 @@ import { cn } from "@/lib/utils"
 import { tokarev } from "@/lib/employees"
 import { LeadQuickActions, type QuickActionType } from "@/components/lead-quick-actions"
 import type { SavedContact } from "@/app/actions/lead-records"
-import { defaultLeadCardConfig, type LeadCardConfig, type LeadCardElementId } from "@/lib/lead-card-config"
 
 const SAVED_CONTACT_ID_OFFSET = 1_000_000_000
 
@@ -49,7 +48,6 @@ type LeadCardProps = {
   savedContacts?: SavedContact[]
   isDragging?: boolean
   dragProps?: Pick<React.HTMLAttributes<HTMLDivElement>, "draggable" | "onDragStart" | "onDragEnd">
-  cardConfig?: LeadCardConfig
 }
 
 const initialContacts: ContactRecord[] = [
@@ -92,7 +90,7 @@ function PhoneMenu({ phones, onClose }: { phones: string[]; onClose: () => void 
   return typeof document === "undefined" ? null : createPortal(<div className="phone-overlay" role="presentation" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="phone-menu" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="phone-menu-title" onMouseDown={(event) => event.stopPropagation()}><div className="phone-menu-title"><h2 id="phone-menu-title">Телефоны компании</h2><button onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose() }} aria-label="Закрыть телефоны" title="Закрыть"><X /></button></div><div className="phone-list">{phones.map((phone, index) => <div className="phone-row" key={`${phone}-${index}`}><a className="phone-number" href={`tel:${phone.replace(/\s/g, "")}`}><Phone />{phone}</a><div className="phone-row-actions"><Button size="sm" variant="ghost" onClick={() => copyValue(phone, "Номер скопирован")}>Скопировать</Button><Button size="sm" variant="outline" asChild><a href={`tel:${phone.replace(/\s/g, "")}`}>Позвонить</a></Button></div></div>)}</div></section></div>, document.body)
 }
 
-export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isDragging, dragProps, cardConfig }: LeadCardProps) {
+export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isDragging, dragProps }: LeadCardProps) {
   const [phoneOpen, setPhoneOpen] = useState(false)
   const [addressOpen, setAddressOpen] = useState(false)
   const [contactsOpen, setContactsOpen] = useState(false)
@@ -105,17 +103,5 @@ export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isD
   const [quoteStatus, setQuoteStatus] = useState(lead.quoteStatus ?? "КП озвучено")
   const cardRef = useRef<HTMLDivElement>(null)
   const saveContact = (contact: ContactRecord) => setContacts((current) => { const normalized = contact.primary ? current.map((item) => ({ ...item, primary: false })) : current; const exists = normalized.some((item) => item.id === contact.id); return exists ? normalized.map((item) => item.id === contact.id ? contact : item) : [...normalized, contact] })
-  const config = cardConfig ?? defaultLeadCardConfig
-  const hidden = new Set(config.hidden)
-  const elementContent: Record<LeadCardElementId, React.ReactNode> = {
-    direction: <div className="lead-card-direction"><span className="direction-chip" data-direction={directionTone[lead.direction ?? "А2-СП"]}>{lead.direction ?? "А2-СП"}</span></div>,
-    company: <h3 className="lead-card-config-company">{lead.company}</h3>,
-    duration: <span className={cn("lead-stage-duration", lead.days >= 14 && "is-long")}>{lead.days} дн в стадии</span>,
-    service: <p className="lead-service"><Building2 />{lead.request}</p>,
-    object: <div className="lead-object-line"><button className="lead-address-icon" type="button" title="Показать адрес" aria-label={`Показать адрес: ${lead.address?.city || "Адрес не указан"}`} onClick={(event) => { event.stopPropagation(); setAddressOpen(true) }}><MapPin /></button><span className="lead-object-name">{lead.objectName || "Название объекта не указано"}</span></div>,
-    financials: <div className="lead-financials" onClick={(event) => event.stopPropagation()}><strong>{formatRubles(lead.value)}</strong><Select value={quoteStatus} onValueChange={setQuoteStatus}><SelectTrigger aria-label="Статус КП"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="КП озвучено">КП озвучено</SelectItem><SelectItem value="КП отправлено">КП отправлено</SelectItem></SelectContent></Select></div>,
-    owner: <div className="lead-owner"><span className="lead-owner-label">Ответственный</span><span className="lead-owner-name" title={lead.owner}>{lead.owner}</span></div>,
-  }
-  const renderElement = (id: LeadCardElementId) => !hidden.has(id) ? <Fragment key={id}>{elementContent[id]}</Fragment> : null
-  return <div className={cn("lead-card", isDragging && "is-dragging")} data-lead-id={lead.id} {...dragProps} ref={cardRef} role="button" tabIndex={0} onClick={onClick} onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick() } }}><div className="lead-card-header"><div className="lead-card-title" /><div className="lead-card-header-actions" onClick={(event) => event.stopPropagation()}><Button size="icon" variant="ghost" title="Телефоны компании" aria-label="Телефоны компании" onClick={() => setPhoneOpen((open) => !open)}><Phone /></Button><Button size="icon" variant="ghost" title={`Контакты · ${contacts.length}`} aria-label={`Открыть контакты, ${contacts.length}`} onClick={() => { setPhoneOpen(false); setContactsOpen(true) }}><Users /></Button></div></div>{config.order.map(renderElement)}<div className="lead-owner-row"><div className="lead-owner-actions-spacer" /><LeadQuickActions leadId={lead.id} onAction={(type) => onQuickAction?.(type, lead)} /></div>{phoneOpen && <PhoneMenu phones={[lead.phone, "+7 812 555-00-12"]} onClose={() => setPhoneOpen(false)} />}{addressOpen && <AddressModal address={lead.address} onClose={() => setAddressOpen(false)} />}{contactsOpen && <ContactsModal contacts={contacts} onClose={() => setContactsOpen(false)} onSave={saveContact} />}</div>
+  return <div className={cn("lead-card", isDragging && "is-dragging")} data-lead-id={lead.id} {...dragProps} ref={cardRef} role="button" tabIndex={0} onClick={onClick} onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick() } }}><div className="lead-card-direction"><span className="direction-chip" data-direction={directionTone[lead.direction ?? "А2-СП"]}>{lead.direction ?? "А2-СП"}</span></div><div className="lead-card-header"><div className="lead-card-title"><h3>{lead.company}</h3><span className={cn("lead-stage-duration", lead.days >= 14 && "is-long")}>{lead.days} дн в стадии</span></div><div className="lead-card-header-actions" onClick={(event) => event.stopPropagation()}><Button size="icon" variant="ghost" title="Телефоны компании" aria-label="Телефоны компании" onClick={() => setPhoneOpen((open) => !open)}><Phone /></Button><Button size="icon" variant="ghost" title={`Контакты · ${contacts.length}`} aria-label={`Открыть контакты, ${contacts.length}`} onClick={() => { setPhoneOpen(false); setContactsOpen(true) }}><Users /></Button></div></div><p className="lead-service"><Building2 />{lead.request}</p><div className="lead-object-line"><button className="lead-address-icon" type="button" title="Показать адрес" aria-label={`Показать адрес: ${lead.address?.city || "Адрес не указан"}`} onClick={(event) => { event.stopPropagation(); setAddressOpen(true) }}><MapPin /></button><span className="lead-object-name">{lead.objectName || "Название объекта не указано"}</span></div><div className="lead-financials" onClick={(event) => event.stopPropagation()}><strong>{formatRubles(lead.value)}</strong><Select value={quoteStatus} onValueChange={setQuoteStatus}><SelectTrigger aria-label="Статус КП"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="КП озвучено">КП озвучено</SelectItem><SelectItem value="КП отправлено">КП отправлено</SelectItem></SelectContent></Select></div><div className="lead-owner-row"><div className="lead-owner"><span className="lead-owner-label">Ответственный</span><span className="lead-owner-name" title={lead.owner}>{lead.owner}</span></div><LeadQuickActions leadId={lead.id} onAction={(type) => onQuickAction?.(type, lead)} /></div>{phoneOpen && <PhoneMenu phones={[lead.phone, "+7 812 555-00-12"]} onClose={() => setPhoneOpen(false)} />}{addressOpen && <AddressModal address={lead.address} onClose={() => setAddressOpen(false)} />}{contactsOpen && <ContactsModal contacts={contacts} onClose={() => setContactsOpen(false)} onSave={saveContact} />}</div>
 }
