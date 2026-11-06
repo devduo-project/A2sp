@@ -5,6 +5,7 @@ export const employees = [
   "Алексей Тютюнков",
   "Ринат Желетдинов",
   "Игорь Боблак",
+  "Муслим Саидгариев",
 ] as const
 
 export type Employee = (typeof employees)[number]
