@@ -185,27 +185,6 @@ function NewLeadForm({ onClose, onCreated }: Omit<NewLeadDialogProps, "open">) {
         )}
       </fieldset>
 
-      <Field label="Наименование объекта" error={errors.objectName} required>
-        <Input value={form.objectName} maxLength={200} placeholder="ЖК «Название»" aria-invalid={Boolean(errors.objectName)} onChange={(event) => update("objectName", event.target.value)} />
-      </Field>
-
-      <div className="glass-row">
-        <Field label="Город">
-          <Input value={form.city} maxLength={120} onChange={(event) => update("city", event.target.value)} />
-        </Field>
-        <Field label="Улица">
-          <Input value={form.street} maxLength={200} onChange={(event) => update("street", event.target.value)} />
-        </Field>
-      </div>
-      <div className="glass-row">
-        <Field label="Дом, корпус">
-          <Input value={form.building} maxLength={80} onChange={(event) => update("building", event.target.value)} />
-        </Field>
-        <Field label="Дополнительно">
-          <Input value={form.additional} maxLength={200} onChange={(event) => update("additional", event.target.value)} />
-        </Field>
-      </div>
-
       <div className="glass-row">
         <Field label="Сумма">
           <div className="glass-amount">
@@ -225,6 +204,27 @@ function NewLeadForm({ onClose, onCreated }: Omit<NewLeadDialogProps, "open">) {
               ))}
             </SelectContent>
           </Select>
+        </Field>
+      </div>
+
+      <Field label="Наименование объекта" error={errors.objectName} required>
+        <Input value={form.objectName} maxLength={200} placeholder="ЖК «Название»" aria-invalid={Boolean(errors.objectName)} onChange={(event) => update("objectName", event.target.value)} />
+      </Field>
+
+      <div className="glass-row">
+        <Field label="Город">
+          <Input value={form.city} maxLength={120} onChange={(event) => update("city", event.target.value)} />
+        </Field>
+        <Field label="Улица">
+          <Input value={form.street} maxLength={200} onChange={(event) => update("street", event.target.value)} />
+        </Field>
+      </div>
+      <div className="glass-row">
+        <Field label="Дом, корпус">
+          <Input value={form.building} maxLength={80} onChange={(event) => update("building", event.target.value)} />
+        </Field>
+        <Field label="Дополнительно">
+          <Input value={form.additional} maxLength={200} onChange={(event) => update("additional", event.target.value)} />
         </Field>
       </div>
 
