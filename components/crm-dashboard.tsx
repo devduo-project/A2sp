@@ -3,7 +3,7 @@
 import { Fragment, useMemo, useRef, useState, useTransition } from "react"
 import { toast } from "sonner"
 import {
-  Archive, ArrowLeft, CalendarDays, CheckCircle2, ChevronDown, ChevronRight,
+  Archive, ArrowLeft, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight,
   CircleHelp, ClipboardList, Clock3, FileText, FolderKanban, Mail,
   Menu, MessageSquare, Paperclip, Pencil, Phone, Plus, Search, Settings2,
   SlidersHorizontal, Sun, Target, Users, X
