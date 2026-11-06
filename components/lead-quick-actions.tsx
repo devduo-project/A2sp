@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion } from "motion/react"
-import { Building2, ClipboardPlus, Copy, Link, MapPin, Pencil, Plus, UserPlus, Wallet, type LucideIcon } from "lucide-react"
+import { Building2, ClipboardPlus, Copy, Link, MapPin, Pencil, Plus, UserPlus, UserRound, Wallet, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -14,7 +14,7 @@ import {
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
 import { useIsMobile } from "@/hooks/use-mobile"
 
-export type QuickActionType = "task" | "link" | "contact" | "duplicate" | "name" | "amount" | "customer" | "address"
+export type QuickActionType = "task" | "link" | "contact" | "duplicate" | "name" | "amount" | "customer" | "owner" | "address"
 
 type QuickAction = { type: QuickActionType; label: string; icon: LucideIcon }
 
@@ -27,9 +27,10 @@ const actionSections: QuickAction[][] = [
   ],
   [
     { type: "name", label: "Изменить наименование объекта", icon: Pencil },
+    { type: "address", label: "Изменить адрес объекта", icon: MapPin },
     { type: "amount", label: "Изменить сумму", icon: Wallet },
     { type: "customer", label: "Изменить заказчика", icon: Building2 },
-    { type: "address", label: "Изменить адрес", icon: MapPin },
+    { type: "owner", label: "Изменить ответственного", icon: UserRound },
   ],
 ]
 

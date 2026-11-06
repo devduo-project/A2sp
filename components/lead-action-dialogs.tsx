@@ -13,6 +13,7 @@ import { updateLeadFields, type LeadFieldsPatch } from "@/app/actions/leads"
 import type { Lead } from "@/components/lead-card"
 import type { QuickActionType } from "@/components/lead-quick-actions"
 import { employees } from "@/lib/employees"
+import { OwnerForm } from "@/components/lead-owner-form"
 
 type EditableAction = Exclude<QuickActionType, "link" | "duplicate">
 
@@ -77,6 +78,8 @@ function ActionForm({ lead, action, onClose, onLeadUpdated, onContactCreated }: 
           onLeadUpdated={onLeadUpdated}
         />
       )
+    case "owner":
+      return <OwnerForm lead={lead} onClose={onClose} onLeadUpdated={onLeadUpdated} />
     case "amount":
       return <AmountForm lead={lead} onClose={onClose} onLeadUpdated={onLeadUpdated} />
     case "address":
@@ -84,7 +87,7 @@ function ActionForm({ lead, action, onClose, onLeadUpdated, onContactCreated }: 
   }
 }
 
-function FormShell({ title, description, onSubmit, pending, submitLabel = "Сохранить", onClose, children }: { title: string; description: string; onSubmit: (event: FormEvent) => void; pending: boolean; submitLabel?: string; onClose: () => void; children: ReactNode }) {
+export function FormShell({ title, description, onSubmit, pending, submitLabel = "Сохранить", onClose, children }: { title: string; description: string; onSubmit: (event: FormEvent) => void; pending: boolean; submitLabel?: string; onClose: () => void; children: ReactNode }) {
   return (
     <form onSubmit={onSubmit} noValidate className="glass-form">
       <DialogHeader>
@@ -104,7 +107,7 @@ function FormShell({ title, description, onSubmit, pending, submitLabel = "Со�
   )
 }
 
-function Field({ label, error, required, children }: { label: string; error?: string; required?: boolean; children: ReactNode }) {
+export function Field({ label, error, required, children }: { label: string; error?: string; required?: boolean; children: ReactNode }) {
   return (
     <label className="glass-field">
       <span>
@@ -330,7 +333,7 @@ function ContactForm({ lead, onClose, onCreated }: { lead: Lead; onClose: () => 
         <Input value={form.role} maxLength={160} onChange={(event) => update("role", event.target.value)} />
       </Field>
       <div className="glass-row">
-        <Field label="Телефон">
+        <Field label="Телеф��н">
           <Input type="tel" value={form.phone} maxLength={40} onChange={(event) => update("phone", event.target.value)} />
         </Field>
         <Field label="Email" error={errors.email}>
