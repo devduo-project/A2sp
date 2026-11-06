@@ -13,6 +13,7 @@ import { updateLeadFields, type LeadFieldsPatch } from "@/app/actions/leads"
 import type { Lead } from "@/components/lead-card"
 import type { QuickActionType } from "@/components/lead-quick-actions"
 import { employees } from "@/lib/employees"
+import { OwnerForm } from "@/components/lead-owner-form"
 
 type EditableAction = Exclude<QuickActionType, "link" | "duplicate">
 
@@ -77,6 +78,8 @@ function ActionForm({ lead, action, onClose, onLeadUpdated, onContactCreated }: 
           onLeadUpdated={onLeadUpdated}
         />
       )
+    case "owner":
+      return <OwnerForm lead={lead} onClose={onClose} onLeadUpdated={onLeadUpdated} />
     case "amount":
       return <AmountForm lead={lead} onClose={onClose} onLeadUpdated={onLeadUpdated} />
     case "address":

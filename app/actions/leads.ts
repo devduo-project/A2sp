@@ -26,6 +26,7 @@ export type LeadFieldsPatch = {
   company?: string
   objectName?: string
   value?: string
+  owner?: string
   address?: NonNullable<Lead["address"]>
 }
 
@@ -130,6 +131,11 @@ export async function updateLeadFields(leadId: string, patch: LeadFieldsPatch): 
   if (patch.objectName !== undefined) {
     next.objectName = clean(patch.objectName, 200)
     if (!next.objectName) throw new Error("Укажите наименование объекта")
+  }
+  if (patch.owner !== undefined) {
+    const owner = clean(patch.owner, 120)
+    if (!(employees as readonly string[]).includes(owner)) throw new Error("Выберите ответственного")
+    next.owner = owner
   }
   if (patch.value !== undefined) {
     const digits = clean(patch.value, 40).replace(/\D/g, "")
