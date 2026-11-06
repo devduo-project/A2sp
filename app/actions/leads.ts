@@ -5,6 +5,8 @@ import { db } from "@/lib/db"
 import { leads } from "@/lib/db/schema"
 import { isLeadStage, leadStages } from "@/lib/lead-stages"
 import { seedLeads } from "@/lib/leads-seed"
+import { employees } from "@/lib/employees"
+import { createLeadContact, type SavedContact } from "@/app/actions/lead-records"
 import type { Lead } from "@/components/lead-card"
 
 const MAX_COLUMN_SIZE = 1000
@@ -28,6 +30,94 @@ export type LeadFieldsPatch = {
 }
 
 const clean = (value: unknown, max: number) => (typeof value === "string" ? value.trim().slice(0, max) : "")
+
+const NEW_LEAD_DIRECTIONS = ["А2-СП", "ИП", "МГСУ"] as const
+const NEW_LEAD_QUOTE_STATUSES = ["КП озвучено", "КП отправлено"] as const
+
+export type NewLeadInput = {
+  direction: string
+  company: string
+  objectName: string
+  request: string
+  address: { city: string; street: string; building: string; additional: string }
+  value: string
+  quoteStatus: string
+  owner: string
+  phone: string
+  contactName: string
+  contactRole: string
+}
+
+export async function createLead(input: NewLeadInput): Promise<{ lead: Lead; contact: SavedContact | null }> {
+  const company = clean(input?.company, 200)
+  const objectName = clean(input?.objectName, 200)
+  const request = clean(input?.request, 200)
+  const owner = clean(input?.owner, 120)
+  if (!company) throw new Error("Укажите заказчика")
+  if (!objectName) throw new Error("Укажите наименование объекта")
+  if (!request) throw new Error("Выберите услугу")
+  if (!(employees as readonly string[]).includes(owner)) throw new Error("Выберите ответственного")
+
+  const direction = clean(input.direction, 20)
+  if (!(NEW_LEAD_DIRECTIONS as readonly string[]).includes(direction)) throw new Error("Выберите направление")
+  const quoteStatus = clean(input.quoteStatus, 40)
+  if (!(NEW_LEAD_QUOTE_STATUSES as readonly string[]).includes(quoteStatus)) throw new Error("Выберите статус КП")
+
+  const digits = clean(input.value, 40).replace(/\D/g, "")
+  if (digits && !Number.isSafeInteger(Number(digits))) throw new Error("Некорректная сумма")
+  const value = `₽ ${Number(digits || 0).toLocaleString("ru-RU").replace(/\u00a0|\u202f/g, " ")}`
+
+  const address = {
+    city: clean(input.address?.city, 120),
+    street: clean(input.address?.street, 200),
+    building: clean(input.address?.building, 80),
+    additional: clean(input.address?.additional, 200),
+  }
+  const contactName = clean(input.contactName, 240)
+  const contactRole = clean(input.contactRole, 160)
+  const stage = leadStages[0]
+
+  const lead = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(724001)`)
+    const rows = await tx.select({ id: leads.id, position: leads.position }).from(leads)
+    const lastNumber = rows.reduce((max, row) => {
+      const match = /^Л-(\d+)$/.exec(row.id)
+      return match && Number(match[1]) > max ? Number(match[1]) : max
+    }, 24000)
+    const firstPosition = rows.reduce((min, row) => Math.min(min, row.position), 0)
+    const id = `Л-${lastNumber + 1}`
+    const data = {
+      company,
+      contact: contactName,
+      role: contactRole,
+      phone: clean(input.phone, 40),
+      city: address.city,
+      objectName,
+      direction: direction as (typeof NEW_LEAD_DIRECTIONS)[number],
+      address,
+      request,
+      source: "Создан вручную",
+      owner,
+      value,
+      quoteStatus,
+      next: "Не запланировано",
+      days: 0,
+    }
+    await tx.insert(leads).values({ id, stage, position: firstPosition - 1, data })
+    return { ...data, id, stage } satisfies Lead
+  })
+
+  let contact: SavedContact | null = null
+  if (contactName) {
+    const [firstName, ...rest] = contactName.split(/\s+/)
+    try {
+      contact = await createLeadContact({ leadId: lead.id, firstName, lastName: rest.join(" "), role: contactRole, phone: "", email: "", comment: "" })
+    } catch {
+      contact = null
+    }
+  }
+  return { lead, contact }
+}
 
 export async function updateLeadFields(leadId: string, patch: LeadFieldsPatch): Promise<Lead> {
   if (typeof leadId !== "string" || !leadId) throw new Error("Некорректный лид")
