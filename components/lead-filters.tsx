@@ -16,14 +16,24 @@ export const emptyLeadFilters: LeadFilterState = { owner: [], direction: [], wor
 const filterDefinitions: { key: FilterKey; label: string; icon: LucideIcon }[] = [
   { key: "owner", label: "Ответственный", icon: UserRound },
   { key: "direction", label: "Направление", icon: Building2 },
-  { key: "workType", label: "Тип работы", icon: Wrench },
+  { key: "workType", label: "Услуга", icon: Wrench },
   { key: "stage", label: "Стадия", icon: Columns3 },
 ]
+
+export const serviceOptions = ["Обследование", "Проектирование", "Технический аудит"]
+
+function serviceOf(request: string) {
+  const text = request.toLowerCase()
+  if (text.includes("аудит")) return "Технический аудит"
+  if (text.includes("проектир") || text.includes("расчёт") || text.includes("расчет") || text.includes("конструкц")) return "Проектирование"
+  if (text.includes("обследован")) return "Обследование"
+  return ""
+}
 
 export function leadFilterValue(lead: Lead, key: FilterKey) {
   if (key === "owner") return lead.owner
   if (key === "direction") return lead.direction ?? "А2-СП"
-  if (key === "workType") return lead.request
+  if (key === "workType") return serviceOf(lead.request)
   return lead.stage
 }
 
@@ -33,7 +43,7 @@ export function matchesLeadFilters(lead: Lead, filters: LeadFilterState) {
 
 export function buildLeadFilterOptions(leads: Lead[], stages: readonly string[]): LeadFilterOptions {
   const unique = (key: Exclude<FilterKey, "stage">) => [...new Set(leads.map(lead => leadFilterValue(lead, key)).filter(Boolean))]
-  return { owner: [...new Set([...employees, ...unique("owner")])], direction: unique("direction"), workType: unique("workType"), stage: [...stages] }
+  return { owner: [...new Set([...employees, ...unique("owner")])], direction: unique("direction"), workType: serviceOptions, stage: [...stages] }
 }
 
 export function countActiveFilters(filters: LeadFilterState) {
@@ -45,22 +55,27 @@ function toggleValue(filters: LeadFilterState, key: FilterKey, value: string): L
   return { ...filters, [key]: current.includes(value) ? current.filter(item => item !== value) : [...current, value] }
 }
 
+const searchPlaceholders: Partial<Record<FilterKey, string>> = {
+  owner: "Поиск по сотрудникам",
+  workType: "Поиск по услугам",
+}
+
 type FilterProps = {
   options: LeadFilterOptions
   value: LeadFilterState
   onChange: (next: LeadFilterState) => void
 }
 
-function OptionList({ label, options, selected, onToggle, searchable }: { label: string; options: string[]; selected: string[]; onToggle: (value: string) => void; searchable?: boolean }) {
+function OptionList({ label, options, selected, onToggle, searchPlaceholder }: { label: string; options: string[]; selected: string[]; onToggle: (value: string) => void; searchPlaceholder?: string }) {
   const [query, setQuery] = useState("")
   const needle = query.trim().toLowerCase()
   const visible = needle ? options.filter(option => option.toLowerCase().includes(needle)) : options
   return (
     <>
-      {searchable && (
+      {searchPlaceholder && (
         <div className="filter-search">
           <Search aria-hidden="true" />
-          <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Поиск по сотрудникам" aria-label="Поиск по сотрудникам" autoFocus />
+          <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} autoFocus />
         </div>
       )}
       <ul className="filter-options" role="listbox" aria-label={label} aria-multiselectable="true">
@@ -99,7 +114,7 @@ function FilterDropdown({ definition, options, value, onChange }: FilterProps & 
           <strong>{label}</strong>
           <button type="button" className="filter-clear" disabled={selected.length === 0} onClick={() => onChange({ ...value, [key]: [] })}>Очистить</button>
         </div>
-        <OptionList label={label} options={options[key]} selected={selected} searchable={key === "owner"} onToggle={item => onChange(toggleValue(value, key, item))} />
+        <OptionList label={label} options={options[key]} selected={selected} searchPlaceholder={searchPlaceholders[key]} onToggle={item => onChange(toggleValue(value, key, item))} />
       </PopoverContent>
     </Popover>
   )
