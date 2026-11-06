@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Building2, Check, ChevronDown, Columns3, ListFilter, RotateCcw, SearchX, UserRound, Wrench, X, type LucideIcon } from "lucide-react"
+import { Building2, Check, ChevronDown, Columns3, RotateCcw, Search, SearchX, UserRound, Wrench, X, type LucideIcon } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { employees } from "@/lib/employees"
 import type { Lead } from "@/components/lead-card"
 
 export type FilterKey = "owner" | "direction" | "workType" | "stage"
@@ -14,7 +15,7 @@ export const emptyLeadFilters: LeadFilterState = { owner: [], direction: [], wor
 
 const filterDefinitions: { key: FilterKey; label: string; icon: LucideIcon }[] = [
   { key: "owner", label: "Ответственный", icon: UserRound },
-  { key: "direction", label: "Юридическое лицо", icon: Building2 },
+  { key: "direction", label: "Направление", icon: Building2 },
   { key: "workType", label: "Тип работы", icon: Wrench },
   { key: "stage", label: "Стадия", icon: Columns3 },
 ]
@@ -32,7 +33,7 @@ export function matchesLeadFilters(lead: Lead, filters: LeadFilterState) {
 
 export function buildLeadFilterOptions(leads: Lead[], stages: readonly string[]): LeadFilterOptions {
   const unique = (key: Exclude<FilterKey, "stage">) => [...new Set(leads.map(lead => leadFilterValue(lead, key)).filter(Boolean))]
-  return { owner: unique("owner"), direction: unique("direction"), workType: unique("workType"), stage: [...stages] }
+  return { owner: [...new Set([...employees, ...unique("owner")])], direction: unique("direction"), workType: unique("workType"), stage: [...stages] }
 }
 
 export function countActiveFilters(filters: LeadFilterState) {
@@ -50,22 +51,33 @@ type FilterProps = {
   onChange: (next: LeadFilterState) => void
 }
 
-function OptionList({ label, options, selected, onToggle }: { label: string; options: string[]; selected: string[]; onToggle: (value: string) => void }) {
+function OptionList({ label, options, selected, onToggle, searchable }: { label: string; options: string[]; selected: string[]; onToggle: (value: string) => void; searchable?: boolean }) {
+  const [query, setQuery] = useState("")
+  const needle = query.trim().toLowerCase()
+  const visible = needle ? options.filter(option => option.toLowerCase().includes(needle)) : options
   return (
-    <ul className="filter-options" role="listbox" aria-label={label} aria-multiselectable="true">
-      {options.map(option => {
-        const checked = selected.includes(option)
-        return (
-          <li key={option} role="presentation">
-            <button type="button" role="option" aria-selected={checked} className="filter-option" data-checked={checked} onClick={() => onToggle(option)}>
-              <span className="filter-check" aria-hidden="true">{checked && <Check />}</span>
-              <span className="filter-option-label">{option}</span>
-            </button>
-          </li>
-        )
-      })}
-      {options.length === 0 && <li className="filter-options-empty">Нет значений</li>}
-    </ul>
+    <>
+      {searchable && (
+        <div className="filter-search">
+          <Search aria-hidden="true" />
+          <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Поиск по сотрудникам" aria-label="Поиск по сотрудникам" autoFocus />
+        </div>
+      )}
+      <ul className="filter-options" role="listbox" aria-label={label} aria-multiselectable="true">
+        {visible.map(option => {
+          const checked = selected.includes(option)
+          return (
+            <li key={option} role="presentation">
+              <button type="button" role="option" aria-selected={checked} className="filter-option" data-checked={checked} onClick={() => onToggle(option)}>
+                <span className="filter-check" aria-hidden="true">{checked && <Check />}</span>
+                <span className="filter-option-label">{option}</span>
+              </button>
+            </li>
+          )
+        })}
+        {visible.length === 0 && <li className="filter-options-empty">{options.length === 0 ? "Нет значений" : "Ничего не найдено"}</li>}
+      </ul>
+    </>
   )
 }
 
@@ -87,47 +99,7 @@ function FilterDropdown({ definition, options, value, onChange }: FilterProps & 
           <strong>{label}</strong>
           <button type="button" className="filter-clear" disabled={selected.length === 0} onClick={() => onChange({ ...value, [key]: [] })}>Очистить</button>
         </div>
-        <OptionList label={label} options={options[key]} selected={selected} onToggle={item => onChange(toggleValue(value, key, item))} />
-      </PopoverContent>
-    </Popover>
-  )
-}
-
-export function LeadFilterButton({ options, value, onChange }: FilterProps) {
-  const active = countActiveFilters(value)
-  const [open, setOpen] = useState(false)
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button type="button" className="filter-button" data-active={active > 0} aria-label={active ? `Фильтры: активно ${active}` : "Фильтры"}>
-          <ListFilter aria-hidden="true" />
-          <span>Фильтры</span>
-          {active > 0 && <span className="filter-count">{active}</span>}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" sideOffset={8} className="filter-popover filter-panel">
-        <div className="filter-popover-header">
-          <strong>Фильтры</strong>
-          <button type="button" className="filter-clear" disabled={active === 0} onClick={() => onChange(emptyLeadFilters)}>Сбросить фильтры</button>
-        </div>
-        <div className="filter-panel-groups">
-          {filterDefinitions.map(({ key, label, icon: Icon }) => (
-            <fieldset className="filter-panel-group" key={key}>
-              <legend><Icon aria-hidden="true" />{label}</legend>
-              <div className="filter-pills">
-                {options[key].map(option => {
-                  const checked = value[key].includes(option)
-                  return (
-                    <button type="button" key={option} className="filter-pill" aria-pressed={checked} onClick={() => onChange(toggleValue(value, key, option))}>
-                      {checked && <Check aria-hidden="true" />}
-                      {option}
-                    </button>
-                  )
-                })}
-              </div>
-            </fieldset>
-          ))}
-        </div>
+        <OptionList label={label} options={options[key]} selected={selected} searchable={key === "owner"} onToggle={item => onChange(toggleValue(value, key, item))} />
       </PopoverContent>
     </Popover>
   )

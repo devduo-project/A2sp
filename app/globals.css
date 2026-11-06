@@ -98,7 +98,13 @@
 .filter-popover-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 6px 8px; font-size: 13px; }
 .filter-clear { border: 0; background: transparent; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 6px; }
 .filter-clear:disabled { color: var(--muted-foreground); opacity: 0.55; cursor: default; }
-.filter-options { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.filter-search { display: flex; align-items: center; gap: 8px; margin: 0 6px 8px; padding: 0 10px; height: 36px; border: 1px solid oklch(1 0 0 / 0.7); border-radius: 12px; background: oklch(1 0 0 / 0.55); box-shadow: inset 0 1px oklch(1 0 0 / 0.55); color: var(--muted-foreground); }
+.filter-search:focus-within { border-color: oklch(0.28 0.08 252 / 0.45); outline: 2px solid oklch(0.28 0.08 252 / 0.18); outline-offset: 1px; }
+.filter-search svg { width: 15px; height: 15px; flex: none; }
+.filter-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--foreground); font-size: 13px; }
+.filter-search input::placeholder { color: var(--muted-foreground); }
+.filter-search input::-webkit-search-cancel-button { cursor: pointer; }
+.filter-options { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; max-height: 280px; overflow-y: auto; }
 .filter-options-empty { padding: 10px; color: var(--muted-foreground); font-size: 12px; }
 .filter-option { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 10px; background: transparent; color: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: background-color 140ms ease; }
 .filter-option:hover { background: oklch(1 0 0 / 0.72); }
