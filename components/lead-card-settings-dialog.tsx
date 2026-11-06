@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type DragEvent } from "react"
+import { useEffect, useState, type DragEvent } from "react"
 import { Check, GripVertical, RotateCcw, X } from "lucide-react"
 import { toast } from "sonner"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -19,6 +19,10 @@ export function LeadCardSettingsDialog({ open, initialConfig, onClose, onSaved }
   const [draft, setDraft] = useState<LeadCardConfig>(initialConfig)
   const [dragged, setDragged] = useState<LeadCardElementId | null>(null)
   const [pending, setPending] = useState(false)
+
+  useEffect(() => {
+    if (open) setDraft({ order: [...initialConfig.order], hidden: [...initialConfig.hidden] })
+  }, [open, initialConfig])
 
   const reset = () => setDraft({ order: [...defaultLeadCardConfig.order], hidden: [] })
   const toggle = (id: LeadCardElementId, visible: boolean) => setDraft((current) => ({ ...current, hidden: visible ? current.hidden.filter((item) => item !== id) : [...current.hidden, id] }))
