@@ -47,6 +47,8 @@ export type NewLeadInput = {
   phone: string
   contactName: string
   contactRole: string
+  contactPhone: string
+  contactEmail: string
 }
 
 export async function createLead(input: NewLeadInput): Promise<{ lead: Lead; contact: SavedContact | null }> {
@@ -112,7 +114,7 @@ export async function createLead(input: NewLeadInput): Promise<{ lead: Lead; con
   if (contactName) {
     const [firstName, ...rest] = contactName.split(/\s+/)
     try {
-      contact = await createLeadContact({ leadId: lead.id, firstName, lastName: rest.join(" "), role: contactRole, phone: "", email: "", comment: "" })
+      contact = await createLeadContact({ leadId: lead.id, firstName, lastName: rest.join(" "), role: contactRole, phone: clean(input.contactPhone, 40), email: clean(input.contactEmail, 200), comment: "" })
     } catch {
       contact = null
     }

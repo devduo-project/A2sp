@@ -57,6 +57,8 @@ function NewLeadForm({ onClose, onCreated }: Omit<NewLeadDialogProps, "open">) {
     phone: "",
     contactName: "",
     contactRole: "",
+    contactPhone: "",
+    contactEmail: "",
   })
   const [errors, setErrors] = useState<Errors>({})
   const [pending, setPending] = useState(false)
@@ -90,6 +92,8 @@ function NewLeadForm({ onClose, onCreated }: Omit<NewLeadDialogProps, "open">) {
         phone: form.phone,
         contactName: form.contactName,
         contactRole: form.contactRole,
+        contactPhone: form.contactPhone,
+        contactEmail: form.contactEmail,
       })
       onCreated(lead, contact)
       toast.success(`Лид ${lead.id} создан`)
@@ -136,6 +140,28 @@ function NewLeadForm({ onClose, onCreated }: Omit<NewLeadDialogProps, "open">) {
       <Field label="Заказчик" error={errors.company} required>
         <Input autoFocus value={form.company} maxLength={200} placeholder="ООО «Название»" aria-invalid={Boolean(errors.company)} onChange={(event) => update("company", event.target.value)} />
       </Field>
+
+      <Field label="Телефон компании">
+        <Input type="tel" value={form.phone} maxLength={40} placeholder="+7" onChange={(event) => update("phone", event.target.value)} />
+      </Field>
+
+      <div className="glass-row">
+        <Field label="Контактное лицо">
+          <Input value={form.contactName} maxLength={240} placeholder="Имя Фамилия" onChange={(event) => update("contactName", event.target.value)} />
+        </Field>
+        <Field label="Должность">
+          <Input value={form.contactRole} maxLength={160} onChange={(event) => update("contactRole", event.target.value)} />
+        </Field>
+      </div>
+
+      <div className="glass-row">
+        <Field label="Телефон контактного лица">
+          <Input type="tel" value={form.contactPhone} maxLength={40} placeholder="+7" onChange={(event) => update("contactPhone", event.target.value)} />
+        </Field>
+        <Field label="Электронная почта">
+          <Input type="email" value={form.contactEmail} maxLength={200} placeholder="name@example.com" onChange={(event) => update("contactEmail", event.target.value)} />
+        </Field>
+      </div>
 
       <fieldset className="glass-field glass-service" aria-invalid={Boolean(errors.service)}>
         <legend>
@@ -202,18 +228,6 @@ function NewLeadForm({ onClose, onCreated }: Omit<NewLeadDialogProps, "open">) {
         </Field>
       </div>
 
-      <Field label="Телефон компании">
-        <Input type="tel" value={form.phone} maxLength={40} placeholder="+7" onChange={(event) => update("phone", event.target.value)} />
-      </Field>
-
-      <div className="glass-row">
-        <Field label="Контактное лицо">
-          <Input value={form.contactName} maxLength={240} placeholder="Имя Фамилия" onChange={(event) => update("contactName", event.target.value)} />
-        </Field>
-        <Field label="Должность">
-          <Input value={form.contactRole} maxLength={160} onChange={(event) => update("contactRole", event.target.value)} />
-        </Field>
-      </div>
     </FormShell>
   )
 }
