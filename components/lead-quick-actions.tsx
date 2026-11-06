@@ -27,10 +27,10 @@ const actionSections: QuickAction[][] = [
   ],
   [
     { type: "name", label: "Изменить наименование объекта", icon: Pencil },
+    { type: "address", label: "Изменить адрес объекта", icon: MapPin },
     { type: "amount", label: "Изменить сумму", icon: Wallet },
     { type: "customer", label: "Изменить заказчика", icon: Building2 },
     { type: "owner", label: "Изменить ответственного", icon: UserRound },
-    { type: "address", label: "Изменить адрес", icon: MapPin },
   ],
 ]
 
