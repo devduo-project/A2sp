@@ -27,6 +27,7 @@ export type LeadFieldsPatch = {
   objectName?: string
   value?: string
   owner?: string
+  companyPhones?: string[]
   address?: NonNullable<Lead["address"]>
 }
 
@@ -138,6 +139,12 @@ export async function updateLeadFields(leadId: string, patch: LeadFieldsPatch): 
     const owner = clean(patch.owner, 120)
     if (!(employees as readonly string[]).includes(owner)) throw new Error("Выберите ответственного")
     next.owner = owner
+  }
+  if (patch.companyPhones !== undefined) {
+    const phones = Array.isArray(patch.companyPhones) ? patch.companyPhones.map((phone) => clean(phone, 40)).filter(Boolean).slice(0, 20) : []
+    if (!phones.length) throw new Error("Добавьте хотя бы один телефон")
+    next.companyPhones = phones
+    next.phone = phones[0]
   }
   if (patch.value !== undefined) {
     const digits = clean(patch.value, 40).replace(/\D/g, "")
