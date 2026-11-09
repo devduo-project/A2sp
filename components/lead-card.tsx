@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Building2, Copy, Mail, MapPin, Phone, Plus, Users, X } from "lucide-react"
+import { Building2, Mail, MapPin, Phone, Plus, Users, X } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { tokarev } from "@/lib/employees"
 import { LeadQuickActions, type QuickActionType } from "@/components/lead-quick-actions"
 import type { SavedContact } from "@/app/actions/lead-records"
+import { updateLeadFields } from "@/app/actions/leads"
 
 const SAVED_CONTACT_ID_OFFSET = 1_000_000_000
 
@@ -26,6 +27,7 @@ export type Lead = {
   contact: string
   role: string
   phone: string
+  companyPhones?: string[]
   city: string
   objectName?: string
   direction?: LeadDirection
@@ -60,11 +62,6 @@ function formatRubles(value: string) {
   return amount ? `${amount}\u00a0₽` : value
 }
 
-function copyValue(value: string, label: string) {
-  navigator.clipboard?.writeText(value)
-  toast.success(label)
-}
-
 function ContactForm({ contact, onSave, onCancel }: { contact?: ContactRecord; onSave: (contact: ContactRecord) => void; onCancel: () => void }) {
   const [form, setForm] = useState(contact ?? { id: Date.now(), name: "", role: "", phone: "", email: "", primary: false, manager: "" })
   const update = (key: keyof ContactRecord, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }))
@@ -85,13 +82,21 @@ function AddressModal({ address, onClose }: { address?: Lead["address"]; onClose
   return typeof document === "undefined" ? null : createPortal(<div className="contacts-overlay" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="contacts-modal address-modal" role="dialog" aria-modal="true" aria-labelledby="address-title" onMouseDown={(event) => event.stopPropagation()}><header className="contacts-modal-header"><div><p className="section-label">Локация</p><h2 id="address-title">Адрес компании</h2></div><button className="modal-close" aria-label="Закрыть адрес" title="Закрыть" onClick={onClose}><X /></button></header><div className="address-modal-content">{address && Object.values(address).some(Boolean) ? <><MapPin /><dl className="address-details">{address.city && <div><dt>Город</dt><dd>{address.city}</dd></div>}{address.street && <div><dt>Улица</dt><dd>{address.street}</dd></div>}{address.building && <div><dt>Дом / корпус</dt><dd>{address.building}</dd></div>}{address.additional && <div><dt>Дополнительно</dt><dd>{address.additional}</dd></div>}</dl></> : <p>Адресные данные не указаны</p>}</div></section></div>, document.body)
 }
 
-function PhoneMenu({ phones, onClose }: { phones: string[]; onClose: () => void }) {
-  useEffect(() => { const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose(); document.addEventListener("keydown", onKey); const previousOverflow = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = previousOverflow } }, [onClose])
-  return typeof document === "undefined" ? null : createPortal(<div className="phone-overlay" role="presentation" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="phone-menu" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="phone-menu-title" onMouseDown={(event) => event.stopPropagation()}><div className="phone-menu-title"><h2 id="phone-menu-title">Телефоны компании</h2><button onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose() }} aria-label="Закрыть телефоны" title="Закрыть"><X /></button></div><div className="phone-list">{phones.map((phone, index) => <div className="phone-row" key={`${phone}-${index}`}><a className="phone-number" href={`tel:${phone.replace(/\s/g, "")}`}><Phone />{phone}</a><div className="phone-row-actions"><Button size="sm" variant="ghost" onClick={() => copyValue(phone, "Номер скопирован")}>Скопировать</Button><Button size="sm" variant="outline" asChild><a href={`tel:${phone.replace(/\s/g, "")}`}>Позвонить</a></Button></div></div>)}</div></section></div>, document.body)
+function CompanyPhonesMenu({ phones, onClose, onSave }: { phones: string[]; onClose: () => void; onSave: (phones: string[]) => Promise<void> }) {
+  const [draft, setDraft] = useState(phones)
+  const [editing, setEditing] = useState<number | null>(null)
+  const [value, setValue] = useState("")
+  const [pending, setPending] = useState(false)
+  const startEdit = (index: number) => { setEditing(index); setValue(draft[index]) }
+  const saveValue = () => { const phone = value.trim(); if (!phone) return; setDraft((current) => current.map((item, index) => index === editing ? phone : item)); setEditing(null); setValue("") }
+  const addPhone = () => { const phone = value.trim(); if (!phone) return; setDraft((current) => [...current, phone]); setValue("") }
+  const save = async () => { if (!draft.length) return; setPending(true); try { await onSave(draft); onClose() } catch { } finally { setPending(false) } }
+  return typeof document === "undefined" ? null : createPortal(<div className="phone-overlay" role="presentation" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="phone-menu phone-menu-editor" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="phone-menu-title" onMouseDown={(event) => event.stopPropagation()}><div className="phone-menu-title"><h2 id="phone-menu-title">Телефоны компании</h2><button onClick={onClose} aria-label="Закрыть телефоны" title="Закрыть"><X /></button></div><div className="phone-list">{draft.map((phone, index) => <div className="phone-row" key={`${phone}-${index}`}>{editing === index ? <div className="phone-edit-row"><Input autoFocus type="tel" value={value} onChange={(event) => setValue(event.target.value)} onKeyDown={(event) => event.key === "Enter" && saveValue()} /><Button type="button" size="sm" onClick={saveValue}>Готово</Button></div> : <><a className="phone-number" href={`tel:${phone.replace(/\s/g, "")}`}><Phone />{phone}</a><div className="phone-row-actions"><Button type="button" size="sm" variant="ghost" onClick={() => startEdit(index)}>Изменить</Button><Button type="button" size="sm" variant="ghost" onClick={() => setDraft((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Удалить</Button></div></>}</div>)}</div><div className="phone-add-row"><Input type="tel" placeholder="Добавить телефон" value={editing === null ? value : ""} onChange={(event) => setValue(event.target.value)} onKeyDown={(event) => event.key === "Enter" && addPhone()} /><Button type="button" variant="outline" onClick={addPhone}><Plus data-icon="inline-start" /> Добавить</Button></div><div className="modal-actions"><Button variant="outline" onClick={onClose}>Отмена</Button><Button type="button" disabled={pending || !draft.length} onClick={save}>{pending ? "Сохраняем…" : "Сохранить"}</Button></div></section></div>, document.body)
 }
 
 export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isDragging, dragProps }: LeadCardProps) {
   const [phoneOpen, setPhoneOpen] = useState(false)
+  const [companyPhones, setCompanyPhones] = useState<string[]>(() => (lead.companyPhones?.length ? lead.companyPhones : lead.phone ? [lead.phone] : []))
   const [addressOpen, setAddressOpen] = useState(false)
   const [contactsOpen, setContactsOpen] = useState(false)
   const [localContacts, setContacts] = useState<ContactRecord[]>(initialContacts)
@@ -102,6 +107,16 @@ export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isD
   const contacts = [...localContacts, ...storedContacts]
   const [quoteStatus, setQuoteStatus] = useState(lead.quoteStatus ?? "КП озвучено")
   const cardRef = useRef<HTMLDivElement>(null)
+  const saveCompanyPhones = async (phones: string[]) => {
+    try {
+      const updated = await updateLeadFields(lead.id, { companyPhones: phones })
+      setCompanyPhones(updated.companyPhones?.length ? updated.companyPhones : phones)
+      toast.success("Телефоны компании сохранены")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось сохранить телефоны")
+      throw error
+    }
+  }
   const saveContact = (contact: ContactRecord) => setContacts((current) => { const normalized = contact.primary ? current.map((item) => ({ ...item, primary: false })) : current; const exists = normalized.some((item) => item.id === contact.id); return exists ? normalized.map((item) => item.id === contact.id ? contact : item) : [...normalized, contact] })
-  return <div className={cn("lead-card", isDragging && "is-dragging")} data-lead-id={lead.id} {...dragProps} ref={cardRef} role="button" tabIndex={0} onClick={onClick} onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick() } }}><div className="lead-card-direction"><span className="direction-chip" data-direction={directionTone[lead.direction ?? "А2-СП"]}>{lead.direction ?? "А2-СП"}</span></div><div className="lead-card-header"><div className="lead-card-title"><h3>{lead.company}</h3><span className={cn("lead-stage-duration", lead.days >= 14 && "is-long")}>{lead.days} дн в стадии</span></div><div className="lead-card-header-actions" onClick={(event) => event.stopPropagation()}><Button size="icon" variant="ghost" title="Телефоны компании" aria-label="Телефоны компании" onClick={() => setPhoneOpen((open) => !open)}><Phone /></Button><Button size="icon" variant="ghost" title={`Контакты · ${contacts.length}`} aria-label={`Открыть контакты, ${contacts.length}`} onClick={() => { setPhoneOpen(false); setContactsOpen(true) }}><Users /></Button></div></div><p className="lead-service"><Building2 />{lead.request}</p><div className="lead-object-line"><button className="lead-address-icon" type="button" title="Показать адрес" aria-label={`Показать адрес: ${lead.address?.city || "Адрес не указан"}`} onClick={(event) => { event.stopPropagation(); setAddressOpen(true) }}><MapPin /></button><span className="lead-object-name">{lead.objectName || "Название объекта не указано"}</span></div><div className="lead-financials" onClick={(event) => event.stopPropagation()}><strong>{formatRubles(lead.value)}</strong><Select value={quoteStatus} onValueChange={setQuoteStatus}><SelectTrigger aria-label="Статус КП"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="КП озвучено">КП озвучено</SelectItem><SelectItem value="КП отправлено">КП отправлено</SelectItem></SelectContent></Select></div><div className="lead-owner-row"><div className="lead-owner"><span className="lead-owner-label">Ответственный</span><span className="lead-owner-name" title={lead.owner}>{lead.owner}</span></div><LeadQuickActions leadId={lead.id} onAction={(type) => onQuickAction?.(type, lead)} /></div>{phoneOpen && <PhoneMenu phones={[lead.phone, "+7 812 555-00-12"]} onClose={() => setPhoneOpen(false)} />}{addressOpen && <AddressModal address={lead.address} onClose={() => setAddressOpen(false)} />}{contactsOpen && <ContactsModal contacts={contacts} onClose={() => setContactsOpen(false)} onSave={saveContact} />}</div>
+  return <div className={cn("lead-card", isDragging && "is-dragging")} data-lead-id={lead.id} {...dragProps} ref={cardRef} role="button" tabIndex={0} onClick={onClick} onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick() } }}><div className="lead-card-direction"><span className="direction-chip" data-direction={directionTone[lead.direction ?? "А2-СП"]}>{lead.direction ?? "А2-СП"}</span></div><div className="lead-card-header"><div className="lead-card-title"><h3>{lead.company}</h3><span className={cn("lead-stage-duration", lead.days >= 14 && "is-long")}>{lead.days} дн в стадии</span></div><div className="lead-card-header-actions" onClick={(event) => event.stopPropagation()}><Button size="icon" variant="ghost" title="Телефоны компании" aria-label="Телефоны компании" onClick={() => setPhoneOpen((open) => !open)}><Phone /></Button><Button size="icon" variant="ghost" title={`Контакты · ${contacts.length}`} aria-label={`Открыть контакты, ${contacts.length}`} onClick={() => { setPhoneOpen(false); setContactsOpen(true) }}><Users /></Button></div></div><p className="lead-service"><Building2 />{lead.request}</p><div className="lead-object-line"><button className="lead-address-icon" type="button" title="Показать адрес" aria-label={`Показать адрес: ${lead.address?.city || "Адрес не ука��ан"}`} onClick={(event) => { event.stopPropagation(); setAddressOpen(true) }}><MapPin /></button><span className="lead-object-name">{lead.objectName || "Название объекта не указано"}</span></div><div className="lead-financials" onClick={(event) => event.stopPropagation()}><strong>{formatRubles(lead.value)}</strong><Select value={quoteStatus} onValueChange={setQuoteStatus}><SelectTrigger aria-label="Статус КП"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="КП озвучено">КП озвучено</SelectItem><SelectItem value="КП отправлено">КП отправлено</SelectItem></SelectContent></Select></div><div className="lead-owner-row"><div className="lead-owner"><span className="lead-owner-label">Ответственный</span><span className="lead-owner-name" title={lead.owner}>{lead.owner}</span></div><LeadQuickActions leadId={lead.id} onAction={(type) => onQuickAction?.(type, lead)} /></div>{phoneOpen && <CompanyPhonesMenu phones={companyPhones} onClose={() => setPhoneOpen(false)} onSave={saveCompanyPhones} />}{addressOpen && <AddressModal address={lead.address} onClose={() => setAddressOpen(false)} />}{contactsOpen && <ContactsModal contacts={contacts} onClose={() => setContactsOpen(false)} onSave={saveContact} />}</div>
 }
