@@ -29,6 +29,7 @@ export type Lead = {
   role: string
   phone: string
   companyPhones?: string[]
+  createdAt?: string | Date
   city: string
   objectName?: string
   direction?: LeadDirection
