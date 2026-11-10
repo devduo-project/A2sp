@@ -8,8 +8,35 @@ import { seedLeads } from "@/lib/leads-seed"
 import { employees } from "@/lib/employees"
 import { createLeadContact, type SavedContact } from "@/app/actions/lead-records"
 import type { Lead } from "@/components/lead-card"
+import { cookies } from "next/headers"
+import { defaultLeadCardConfig, normalizeLeadCardConfig, type LeadCardConfig } from "@/lib/lead-card-config"
 
 const MAX_COLUMN_SIZE = 1000
+
+async function layoutUserKey() {
+  const store = await cookies()
+  let key = store.get("crm-lead-layout-user")?.value
+  if (!key) {
+    key = crypto.randomUUID()
+    store.set("crm-lead-layout-user", key, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 60 * 60 * 24 * 365 })
+  }
+  return key
+}
+
+export async function getLeadCardConfig(): Promise<LeadCardConfig> {
+  const userKey = await layoutUserKey()
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS lead_card_preferences (user_key text PRIMARY KEY, config jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`)
+  const result = await db.execute<{ config: LeadCardConfig }>(sql`SELECT config FROM lead_card_preferences WHERE user_key = ${userKey} LIMIT 1`)
+  return normalizeLeadCardConfig(result.rows[0]?.config ?? defaultLeadCardConfig)
+}
+
+export async function saveLeadCardConfig(config: LeadCardConfig): Promise<LeadCardConfig> {
+  const userKey = await layoutUserKey()
+  const normalized = normalizeLeadCardConfig(config)
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS lead_card_preferences (user_key text PRIMARY KEY, config jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`)
+  await db.execute(sql`INSERT INTO lead_card_preferences (user_key, config) VALUES (${userKey}, ${JSON.stringify(normalized)}::jsonb) ON CONFLICT (user_key) DO UPDATE SET config = excluded.config, updated_at = now()`)
+  return normalized
+}
 
 export async function getLeads(): Promise<Lead[]> {
   const rows = await db.select().from(leads).orderBy(asc(leads.position), asc(leads.id))
