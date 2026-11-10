@@ -39,8 +39,9 @@ export async function saveLeadCardConfig(config: LeadCardConfig): Promise<LeadCa
 }
 
 export async function getLeads(): Promise<Lead[]> {
+  await db.execute(sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now()`)
   const rows = await db.select().from(leads).orderBy(asc(leads.position), asc(leads.id))
-  if (rows.length > 0) return rows.map((row) => ({ ...row.data, id: row.id, stage: row.stage }))
+  if (rows.length > 0) return rows.map((row) => ({ ...row.data, id: row.id, stage: row.stage, createdAt: row.createdAt }))
 
   await db
     .insert(leads)
@@ -133,6 +134,7 @@ export async function createLead(input: NewLeadInput): Promise<{ lead: Lead; con
       quoteStatus,
       next: "Не запланировано",
       days: 0,
+      createdAt: new Date().toISOString(),
     }
     await tx.insert(leads).values({ id, stage, position: firstPosition - 1, data })
     return { ...data, id, stage } satisfies Lead

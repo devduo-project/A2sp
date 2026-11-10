@@ -8,6 +8,7 @@ export const leads = pgTable("leads", {
   stage: text("stage").notNull(),
   position: integer("position").notNull().default(0),
   data: jsonb("data").$type<LeadData>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
