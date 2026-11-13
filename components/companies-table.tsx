@@ -143,9 +143,9 @@ export function CompaniesTable({
           <table className="leads-table registry-table companies-registry-table">
             <caption className="sr-only">Реестр компаний, связанных лидов и сделок</caption>
             <thead><tr>
-              <th aria-sort={sort.key === "name" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === "name" && "is-sorted")} onClick={() => toggleSort("name")}>{headers[0].label}<SortArrow column="name" /></button></th>
+              <th aria-sort={sort.key === "name" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === "name" && "is-sorted")} onClick={() => toggleSort("name")}><span className="registry-sort-label">{headers[0].label}</span><SortArrow column="name" /></button></th>
               <th><span className="registry-static-header">Контакты компании</span></th>
-              {headers.slice(1).map(({ key, label, align }) => <th key={key} aria-sort={sort.key === key ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === key && "is-sorted", align === "right" && "justify-end")} onClick={() => toggleSort(key)}>{label}<SortArrow column={key} /></button></th>)}
+              {headers.slice(1).map(({ key, label, align }) => <th key={key} aria-sort={sort.key === key ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === key && "is-sorted", align === "right" && "justify-end")} onClick={() => toggleSort(key)}><span className="registry-sort-label">{label}</span><SortArrow column={key} /></button></th>)}
             </tr></thead>
             <tbody>
               {rows.map((company) => {
@@ -171,7 +171,7 @@ export function CompaniesTable({
                     </td>
                     <td>
                       <div className="registry-activity-cell">
-                        {latest ? <button type="button" className="registry-record-summary" onClick={(event) => { event.stopPropagation(); if (!onRecordSelect(latestType, latest)) setRecordsCompanyId(company.id) }}><span className="registry-activity-kind">{latestType}</span><span className="registry-activity-name">{latest.name}</span><Badge className="registry-stage-badge" variant="secondary" data-kind={latestType.toLowerCase()} style={latestType === "Лид" && leadStageColors[latest.stage as LeadStage] ? { backgroundColor: `${leadStageColors[latest.stage as LeadStage]}22`, color: leadStageColors[latest.stage as LeadStage] } : undefined}>{latest.stage}</Badge></button> : <span className="registry-muted">Нет связанных записей</span>}
+                        {latest ? <button type="button" className="registry-record-summary" onClick={(event) => { event.stopPropagation(); if (!onRecordSelect(latestType, latest)) setRecordsCompanyId(company.id) }}><span className="registry-activity-title"><span className="registry-activity-kind">{latestType}</span><span className="registry-activity-name">{latest.name}</span></span><Badge className="registry-stage-badge" variant="secondary" data-kind={latestType.toLowerCase()} style={latestType === "Лид" && leadStageColors[latest.stage as LeadStage] ? { backgroundColor: `${leadStageColors[latest.stage as LeadStage]}22`, color: leadStageColors[latest.stage as LeadStage] } : undefined}>{latest.stage}</Badge></button> : <span className="registry-muted">Нет связанных записей</span>}
                         {relatedCount > 1 && <Button className="registry-link-button" variant="ghost" size="icon" aria-label={`Открыть лиды и сделки компании ${company.legalName}`} title="Лиды и сделки компании" onClick={(event) => { event.stopPropagation(); setRecordsCompanyId(company.id) }}><ExternalLink /></Button>}
                       </div>
                     </td>
