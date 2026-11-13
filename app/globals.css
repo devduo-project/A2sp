@@ -171,7 +171,7 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 @media (max-width: 640px) { .filter-groups .filter-trigger { display: none; } .leads-empty { flex-wrap: wrap; } }
 @media (prefers-reduced-motion: reduce) { .filter-chip, .leads-empty { animation: none; } .filter-chevron { transition: none; } }
 
-.crm-shell.registry-shell { min-width: 0; }.registry-page { width: 100%; min-width: 0; }.registry-workspace > .toolbar { display: none; }
+.crm-shell.registry-shell { min-width: 0; }.registry-page { width: 100%; min-width: 0; }.registry-workspace > .toolbar, .registry-workspace > .topbar { display: none; }
 .registry-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0 12px 12px; }
 .registry-search { display: flex; align-items: center; gap: 8px; width: min(100%, 470px); min-height: 38px; padding: 0 10px; border: 1px solid oklch(1 0 0 / .68); border-radius: 13px; background: oklch(1 0 0 / .44); backdrop-filter: blur(14px); box-shadow: inset 0 1px oklch(1 0 0 / .55); color: var(--muted-foreground); }
 .registry-search > svg { width: 16px; height: 16px; flex: none; }

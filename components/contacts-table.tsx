@@ -30,20 +30,13 @@ function compareDate(direction: SortDirection, a?: string, b?: string) {
 export function ContactsTable({ contacts, onContactSelect, onCompanySelect }: ContactsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" })
   const [search, setSearch] = useState("")
-  const [companyFilter, setCompanyFilter] = useState("all")
-  const [roleFilter, setRoleFilter] = useState("all")
   const [primaryFilter, setPrimaryFilter] = useState("all")
-
-  const companyNames = useMemo(() => [...new Set(contacts.map((contact) => contact.companyName))].sort((a, b) => a.localeCompare(b, "ru")), [contacts])
-  const roles = useMemo(() => [...new Set(contacts.map((contact) => contact.role).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru")), [contacts])
 
   const rows = useMemo(() => {
     const terms = search.toLocaleLowerCase("ru").trim().split(/\s+/).filter(Boolean)
     return contacts.filter((contact) => {
       const haystack = `${contact.name} ${contact.companyName} ${contact.role} ${contact.phones.join(" ")} ${contact.emails.join(" ")}`.toLocaleLowerCase("ru")
       return terms.every((term) => haystack.includes(term))
-        && (companyFilter === "all" || contact.companyName === companyFilter)
-        && (roleFilter === "all" || contact.role === roleFilter)
         && (primaryFilter === "all" || (primaryFilter === "primary" ? contact.isPrimary : !contact.isPrimary))
     }).sort((a, b) => {
       if (sort.key === "createdAt") return compareDate(sort.direction, a.createdAt, b.createdAt)
@@ -52,7 +45,7 @@ export function ContactsTable({ contacts, onContactSelect, onCompanySelect }: Co
       const result = left.localeCompare(right, "ru")
       return sort.direction === "asc" ? result : -result
     })
-  }, [companyFilter, contacts, primaryFilter, roleFilter, search, sort])
+  }, [contacts, primaryFilter, search, sort])
 
   const toggleSort = (key: SortKey) => setSort((current) => {
     if (current.key !== key) return { key, direction: key === "createdAt" ? "desc" : "asc" }
@@ -78,12 +71,6 @@ export function ContactsTable({ contacts, onContactSelect, onCompanySelect }: Co
           <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, компания, телефон или email" aria-label="Поиск контактов" />
         </label>
         <div className="registry-filters" aria-label="Фильтры контактов">
-          <select className="registry-filter-select" aria-label="Фильтр по компании" value={companyFilter} onChange={(event) => setCompanyFilter(event.target.value)}>
-            <option value="all">Все компании</option>{companyNames.map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
-          <select className="registry-filter-select" aria-label="Фильтр по должности" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
-            <option value="all">Все должности</option>{roles.map((role) => <option key={role} value={role}>{role}</option>)}
-          </select>
           <select className="registry-filter-select" aria-label="Фильтр по роли контакта" value={primaryFilter} onChange={(event) => setPrimaryFilter(event.target.value)}>
             <option value="all">Все контакты</option><option value="primary">Основные контакты</option><option value="other">Остальные контакты</option>
           </select>
