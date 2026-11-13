@@ -177,7 +177,7 @@ export async function updateLeadFields(leadId: string, patch: LeadFieldsPatch): 
   }
   if (patch.value !== undefined) {
     const digits = clean(patch.value, 40).replace(/\D/g, "")
-    if (!digits || !Number.isSafeInteger(Number(digits))) throw new Error("Некорректная сумма")
+    if (!digits || !Number.isSafeInteger(Number(digits))) throw new Error("Некоррект��ая сумма")
     next.value = `₽ ${Number(digits).toLocaleString("ru-RU").replace(/\u00a0|\u202f/g, " ")}`
   }
   if (patch.address !== undefined) {
@@ -228,16 +228,22 @@ export async function moveLead(leadId: string, stage: string, orderedIds: string
     throw new Error("Некорректный порядок")
   }
 
-  await db.transaction(async (tx) => {
-    const updated = await tx
-      .update(leads)
-      .set({ stage, updatedAt: sql`now()` })
-      .where(eq(leads.id, leadId))
-      .returning({ id: leads.id })
-    if (updated.length === 0) throw new Error("Лид не найден")
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select().from(leads).where(eq(leads.id, leadId)).for("update")
+    if (!row) throw new Error("Лид не найден")
+
+    let stageEnteredAt = row.data.stageEnteredAt ?? null
+    if (row.stage !== stage) {
+      stageEnteredAt = new Date().toISOString()
+      await tx
+        .update(leads)
+        .set({ stage, data: { ...row.data, stageEnteredAt, days: 0 }, updatedAt: sql`now()` })
+        .where(eq(leads.id, leadId))
+    }
 
     for (const [position, id] of orderedIds.entries()) {
       await tx.update(leads).set({ position }).where(and(eq(leads.id, id), eq(leads.stage, stage)))
     }
+    return { stageEnteredAt }
   })
 }
