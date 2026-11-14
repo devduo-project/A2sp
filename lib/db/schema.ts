@@ -2,6 +2,7 @@ import { integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg
 import type { Lead } from "@/components/lead-card"
 
 export type LeadData = Omit<Lead, "id" | "stage">
+export type ContactMethod = { id: string; kind: "messenger" | "phone" | "email"; provider?: string; value: string }
 
 export const leads = pgTable("leads", {
   id: text("id").primaryKey(),
@@ -31,6 +32,7 @@ export const leadContacts = pgTable("lead_contacts", {
   role: text("role").notNull().default(""),
   phone: text("phone").notNull().default(""),
   email: text("email").notNull().default(""),
+  contactMethods: jsonb("contact_methods").$type<ContactMethod[]>().notNull().default([]),
   comment: text("comment").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })

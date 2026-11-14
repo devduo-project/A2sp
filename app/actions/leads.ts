@@ -56,6 +56,7 @@ export type LeadFieldsPatch = {
   value?: string
   owner?: string
   companyPhones?: string[]
+  emails?: string[]
   address?: NonNullable<Lead["address"]>
 }
 
@@ -173,11 +174,15 @@ export async function updateLeadFields(leadId: string, patch: LeadFieldsPatch): 
     const phones = Array.isArray(patch.companyPhones) ? patch.companyPhones.map((phone) => clean(phone, 40)).filter(Boolean).slice(0, 20) : []
     if (!phones.length) throw new Error("Добавьте хотя бы один телефон")
     next.companyPhones = phones
-    next.phone = phones[0]
+  }
+  if (patch.emails !== undefined) {
+    const emails = Array.isArray(patch.emails) ? patch.emails.map((email) => clean(email, 200)).filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)).slice(0, 20) : []
+    if (emails.length !== (patch.emails?.length ?? 0)) throw new Error("Проверьте адреса почты")
+    next.emails = emails
   }
   if (patch.value !== undefined) {
     const digits = clean(patch.value, 40).replace(/\D/g, "")
-    if (!digits || !Number.isSafeInteger(Number(digits))) throw new Error("Некоррект��ая сумма")
+    if (!digits || !Number.isSafeInteger(Number(digits))) throw new Error("Некоррект����ая сумма")
     next.value = `₽ ${Number(digits).toLocaleString("ru-RU").replace(/\u00a0|\u202f/g, " ")}`
   }
   if (patch.address !== undefined) {

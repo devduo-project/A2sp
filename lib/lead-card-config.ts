@@ -10,6 +10,11 @@ export const leadCardElements = [
 
 export type LeadCardElementId = (typeof leadCardElements)[number]["id"]
 export type LeadCardConfig = { order: LeadCardElementId[]; hidden: LeadCardElementId[] }
+export type LeadCardTitleStyle = "primary" | "secondary"
+
+export function getLeadCardTitleStyle(index: number): LeadCardTitleStyle {
+  return index === 0 ? "primary" : "secondary"
+}
 
 export const defaultLeadCardConfig: LeadCardConfig = {
   order: leadCardElements.map(({ id }) => id),

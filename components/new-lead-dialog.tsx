@@ -5,7 +5,7 @@ import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createLead } from "@/app/actions/leads"
 import type { SavedContact } from "@/app/actions/lead-records"
 import type { Lead } from "@/components/lead-card"
@@ -14,10 +14,24 @@ import { employees } from "@/lib/employees"
 
 const directions = ["А2-СП", "ИП", "МГСУ"]
 const quoteStatuses = ["КП озвучено", "КП отправлено"]
-const OTHER_SERVICE = "other"
 const serviceChoices = [
-  { value: "Обследование", label: "Обследование" },
-  { value: OTHER_SERVICE, label: "Другой запрос" },
+  { value: "Проектирование", label: "Проектирование" },
+  { value: "Обследование зданий и сооружений", label: "Обследование зданий и сооружений" },
+  { value: "Мониторинг", label: "Мониторинг" },
+  { value: "Проектирование композитных конструкций", label: "Проектирование композитных конструкций" },
+  { value: "Инженерные изыскания", label: "Инженерные изыскания" },
+  { value: "Геофизические исследования", label: "Геофизические исследования" },
+  { value: "Испытание анкеров", label: "Испытание анкеров" },
+  { value: "Натурные испытания конструкций", label: "Натурные испытания конструкций" },
+  { value: "Контроль качества бетона", label: "Контроль качества бетона" },
+  { value: "Авторский надзор", label: "Авторский надзор" },
+  { value: "Геодезические изыскания", label: "Геодезические изыскания" },
+  { value: "Дефектоскопия конструкций", label: "Дефектоскопия конструкций" },
+  { value: "Испытания материалов", label: "Испытания материалов" },
+  { value: "Лазерное 3D сканирование", label: "Лазерное 3D сканирование" },
+  { value: "Обследование инженерных систем и сетей здания", label: "Обследование инженерных систем и сетей здания" },
+  { value: "Проекты усиления конструкций и грунтов", label: "Проекты усиления конструкций и грунтов" },
+  { value: "Расчеты конструкций", label: "Расчеты конструкций" },
 ]
 
 type NewLeadDialogProps = {
@@ -60,6 +74,7 @@ function NewLeadForm({ onClose, onCreated }: Omit<NewLeadDialogProps, "open">) {
     contactPhone: "",
     contactEmail: "",
   })
+  const [includeOtherRequest, setIncludeOtherRequest] = useState(false)
   const [errors, setErrors] = useState<Errors>({})
   const [pending, setPending] = useState(false)
 
@@ -73,11 +88,12 @@ function NewLeadForm({ onClose, onCreated }: Omit<NewLeadDialogProps, "open">) {
     const next: Errors = {}
     if (!form.company.trim()) next.company = "Укажите заказчика"
     if (!form.objectName.trim()) next.objectName = "Укажите наименование объекта"
-    if (!form.service) next.service = "Выберите услугу"
+    if (!form.service && !includeOtherRequest) next.service = "Выберите услугу или отметьте другой запрос"
     if (!form.owner) next.owner = "Выберите ответственного"
     if (Object.keys(next).length > 0) return setErrors(next)
 
-    const request = form.service === OTHER_SERVICE ? form.otherService.trim() || "Другой запрос" : form.service
+    const customRequest = includeOtherRequest ? form.otherService.trim() || "Другой запрос" : ""
+    const request = [form.service, customRequest].filter(Boolean).join("; ")
     setPending(true)
     try {
       const { lead, contact } = await createLead({
@@ -163,27 +179,29 @@ function NewLeadForm({ onClose, onCreated }: Omit<NewLeadDialogProps, "open">) {
         </Field>
       </div>
 
-      <fieldset className="glass-field glass-service" aria-invalid={Boolean(errors.service)}>
-        <legend>
-          Услуга<b aria-hidden> *</b>
-        </legend>
-        <div className="glass-checks">
-          {serviceChoices.map((choice) => (
-            <label key={choice.value} className="glass-check">
-              <Checkbox checked={form.service === choice.value} onCheckedChange={(checked) => update("service", checked ? choice.value : "")} />
-              {choice.label}
-            </label>
-          ))}
-        </div>
-        {form.service === OTHER_SERVICE && (
-          <Input autoFocus value={form.otherService} maxLength={200} placeholder="Название услуги или запроса" aria-label="Название услуги" onChange={(event) => update("otherService", event.target.value)} />
+      <Field label="Услуга" error={errors.service} required={!includeOtherRequest}>
+        <Select value={form.service} onValueChange={(value) => update("service", value)}>
+          <SelectTrigger className="w-full" aria-label="Услуга" aria-invalid={Boolean(errors.service)}>
+            <SelectValue placeholder="Выберите услугу" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {serviceChoices.map((choice) => (
+                <SelectItem key={choice.value} value={choice.value}>
+                  {choice.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <label className="glass-check">
+          <Checkbox checked={includeOtherRequest} onCheckedChange={(checked) => { setIncludeOtherRequest(checked === true); setErrors({}) }} />
+          Другой запрос
+        </label>
+        {includeOtherRequest && (
+          <Input autoFocus value={form.otherService} maxLength={200} placeholder="Название услуги или запроса" aria-label="Название другого запроса" onChange={(event) => update("otherService", event.target.value)} />
         )}
-        {errors.service && (
-          <em role="alert" className="glass-error">
-            {errors.service}
-          </em>
-        )}
-      </fieldset>
+      </Field>
 
       <div className="glass-row">
         <Field label="Сумма">

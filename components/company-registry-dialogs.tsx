@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { Building2, Mail, Phone, Plus, UserRound } from "lucide-react"
+import { Building2, Mail, Phone, Plus, Trash2, UserRound } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import type { CompanyViewModel, RegistryContact, RegistryRecord } from "@/lib/company-registry-data"
+import { createLeadContact, updateLeadContact, type SavedContact } from "@/app/actions/lead-records"
+import type { ContactMethod } from "@/lib/db/schema"
 
 function ContactEditor({
   contact,
@@ -19,74 +21,79 @@ function ContactEditor({
 }: {
   contact?: RegistryContact
   onCancel: () => void
-  onSave: (contact: RegistryContact) => void
+  onSave: (contact: RegistryContact) => Promise<void>
 }) {
   const [name, setName] = useState(contact?.name ?? "")
   const [role, setRole] = useState(contact?.role ?? "")
-  const [phones, setPhones] = useState(contact?.phones.join("\n") ?? "")
-  const [emails, setEmails] = useState(contact?.emails.join("\n") ?? "")
+  const [phone, setPhone] = useState(contact?.phones[0] ?? "")
+  const [email, setEmail] = useState(contact?.emails[0] ?? "")
+  const [telegram, setTelegram] = useState(contact?.telegram ?? "")
+  const [methods, setMethods] = useState<ContactMethod[]>(() => [
+    ...(contact?.contactMethods ?? []),
+    ...(contact?.phones.slice(1) ?? []).map((value) => ({ id: crypto.randomUUID(), kind: "phone" as const, value })),
+    ...(contact?.emails.slice(1) ?? []).map((value) => ({ id: crypto.randomUUID(), kind: "email" as const, value })),
+  ])
   const [comment, setComment] = useState(contact?.comment ?? "")
   const [isPrimary, setIsPrimary] = useState(contact?.isPrimary ?? false)
   const [errors, setErrors] = useState<string[]>([])
+  const [addingType, setAddingType] = useState(false)
+  const [pending, setPending] = useState(false)
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const addMethod = (kind: ContactMethod["kind"]) => {
+    setMethods((current) => [...current, { id: crypto.randomUUID(), kind, provider: kind === "messenger" ? "Telegram" : undefined, value: "" }])
+    setAddingType(false)
+  }
+  const updateMethod = (id: string, patch: Partial<ContactMethod>) => setMethods((current) => current.map((method) => method.id === id ? { ...method, ...patch } : method))
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const cleanPhones = phones.split(/\n|,/).map((item) => item.trim()).filter(Boolean)
-    const cleanEmails = emails.split(/\n|,/).map((item) => item.trim()).filter(Boolean)
+    const cleanMethods = methods.filter((method) => method.value.trim())
+    const cleanEmails = [email, ...cleanMethods.filter((method) => method.kind === "email").map((method) => method.value)].map((value) => value.trim()).filter(Boolean)
     const validation: string[] = []
     if (!name.trim()) validation.push("Укажите ФИО контакта")
-    if (!cleanPhones.length && !cleanEmails.length) validation.push("Добавьте телефон или email")
-    if (cleanEmails.some((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) validation.push("Проверьте формат email")
+    if (cleanEmails.some((value) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))) validation.push("Проверьте формат email")
     setErrors(validation)
     if (validation.length) return
 
-    onSave({
-      id: contact?.id ?? `local-contact-${crypto.randomUUID()}`,
-      name: name.trim(),
-      role: role.trim(),
-      phones: cleanPhones,
-      emails: cleanEmails,
-      comment: comment.trim() || undefined,
-      isPrimary,
-      createdAt: contact?.createdAt,
-      createdBy: contact?.createdBy,
-    })
+    setPending(true)
+    try {
+      await onSave({
+        ...contact,
+        id: contact?.id ?? `local-contact-${crypto.randomUUID()}`,
+        name: name.trim(),
+        role: role.trim(),
+        phones: [phone.trim(), ...cleanMethods.filter((method) => method.kind === "phone").map((method) => method.value.trim())].filter(Boolean),
+        emails: [email.trim(), ...cleanMethods.filter((method) => method.kind === "email").map((method) => method.value.trim())].filter(Boolean),
+        telegram: telegram.trim(),
+        contactMethods: cleanMethods,
+        comment: comment.trim() || undefined,
+        isPrimary,
+      })
+    } catch (error) {
+      setErrors([error instanceof Error ? error.message : "Не удалось сохранить контакт"])
+    } finally {
+      setPending(false)
+    }
   }
+
+  const methodTitle = (method: ContactMethod) => method.kind === "messenger" ? `Мессенджер · ${method.provider || "Мессенджер"}` : method.kind === "phone" ? "Дополнительный телефон" : "Дополнительный email"
 
   return (
     <form className="registry-contact-form" onSubmit={submit} noValidate>
       <FieldGroup className="registry-form-grid">
-        <Field>
-          <FieldLabel htmlFor="registry-contact-name">ФИО</FieldLabel>
-          <Input id="registry-contact-name" value={name} onChange={(event) => setName(event.target.value)} autoFocus aria-invalid={errors.includes("Укажите ФИО контакта")} />
+        <Field><FieldLabel htmlFor="registry-contact-name">ФИО</FieldLabel><Input id="registry-contact-name" value={name} onChange={(event) => setName(event.target.value)} autoFocus aria-invalid={errors.includes("Укажите ФИО контакта")} /></Field>
+        <Field><FieldLabel htmlFor="registry-contact-role">Должность</FieldLabel><Input id="registry-contact-role" value={role} onChange={(event) => setRole(event.target.value)} /></Field>
+        <Field><FieldLabel htmlFor="registry-contact-phone">Телефон</FieldLabel><Input id="registry-contact-phone" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} /></Field>
+        <Field><FieldLabel htmlFor="registry-contact-email">Email</FieldLabel><Input id="registry-contact-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></Field>
+        <Field className="registry-form-wide"><FieldLabel htmlFor="registry-contact-telegram">Telegram</FieldLabel><Input id="registry-contact-telegram" value={telegram} onChange={(event) => setTelegram(event.target.value)} placeholder="@username или https://t.me/username" /></Field>
+        <Field className="registry-form-wide"><div className="registry-contact-methods-heading"><FieldLabel>Дополнительные способы связи</FieldLabel><div className="contact-method-add-wrap"><Button type="button" size="icon" variant="outline" aria-label="Добавить способ связи" aria-expanded={addingType} onClick={() => setAddingType((current) => !current)}><Plus /></Button>{addingType && <div className="contact-method-menu" role="group" aria-label="Тип дополнительного контакта"><button type="button" onClick={() => addMethod("messenger")}>Мессенджер</button><button type="button" onClick={() => addMethod("phone")}>Телефон</button><button type="button" onClick={() => addMethod("email")}>Email</button></div>}</div></div>
+          {methods.map((method) => <div className="registry-extra-contact" key={method.id}><div className="registry-extra-contact-fields"><span>{methodTitle(method)}</span>{method.kind === "messenger" && <label>Мессенджер<Input value={method.provider ?? ""} onChange={(event) => updateMethod(method.id, { provider: event.target.value })} placeholder="Telegram, WhatsApp, MAX" /></label>}<Input aria-label={methodTitle(method)} type={method.kind === "email" ? "email" : method.kind === "phone" ? "tel" : "text"} value={method.value} onChange={(event) => updateMethod(method.id, { value: event.target.value })} placeholder={method.kind === "phone" ? "+7 ..." : method.kind === "email" ? "name@example.com" : "@username или ссылка"} /></div><Button type="button" size="icon" variant="ghost" aria-label={`Удалить ${methodTitle(method)}`} onClick={() => setMethods((current) => current.filter((item) => item.id !== method.id))}><Trash2 /></Button></div>)}
         </Field>
-        <Field>
-          <FieldLabel htmlFor="registry-contact-role">Должность</FieldLabel>
-          <Input id="registry-contact-role" value={role} onChange={(event) => setRole(event.target.value)} />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="registry-contact-phones">Телефоны</FieldLabel>
-          <Textarea id="registry-contact-phones" value={phones} onChange={(event) => setPhones(event.target.value)} placeholder="По одному номеру на строку" rows={2} />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="registry-contact-emails">Email</FieldLabel>
-          <Textarea id="registry-contact-emails" value={emails} onChange={(event) => setEmails(event.target.value)} placeholder="По одному адресу на строку" rows={2} />
-        </Field>
-        <Field className="registry-form-wide">
-          <FieldLabel htmlFor="registry-contact-comment">Комментарий</FieldLabel>
-          <Textarea id="registry-contact-comment" value={comment} onChange={(event) => setComment(event.target.value)} rows={3} />
-        </Field>
-        <Field orientation="horizontal" className="registry-form-wide registry-primary-field">
-          <input id="registry-contact-primary" type="checkbox" checked={isPrimary} onChange={(event) => setIsPrimary(event.target.checked)} />
-          <FieldLabel htmlFor="registry-contact-primary">Основной контакт</FieldLabel>
-        </Field>
+        <Field className="registry-form-wide"><FieldLabel htmlFor="registry-contact-comment">Комментарий</FieldLabel><Textarea id="registry-contact-comment" value={comment} onChange={(event) => setComment(event.target.value)} rows={3} /></Field>
+        <Field orientation="horizontal" className="registry-form-wide registry-primary-field"><input id="registry-contact-primary" type="checkbox" checked={isPrimary} onChange={(event) => setIsPrimary(event.target.checked)} /><FieldLabel htmlFor="registry-contact-primary">Основной контакт</FieldLabel></Field>
       </FieldGroup>
       {errors.length > 0 && <p className="registry-form-error" role="alert">{errors[0]}</p>}
-      <DialogFooter className="registry-dialog-footer">
-        <Button type="button" variant="outline" onClick={onCancel}>Отмена</Button>
-        <Button type="submit">{contact ? "Сохранить" : "Добавить контакт"}</Button>
-      </DialogFooter>
-      <p className="registry-demo-note">Изменения действуют только в текущем интерфейсе и исчезнут после перезагрузки.</p>
+      <DialogFooter className="registry-dialog-footer"><Button type="button" variant="outline" onClick={onCancel}>Отмена</Button><Button type="submit" disabled={pending}>{pending ? "Сохранение…" : contact ? "Сохранить" : "Добавить контакт"}</Button></DialogFooter>
     </form>
   )
 }
@@ -96,25 +103,63 @@ export function CompanyContactsDialog({
   open,
   onOpenChange,
   onContactsChange,
+  onSavedContact,
 }: {
   company: CompanyViewModel | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onContactsChange: (contacts: RegistryContact[]) => void
+  onSavedContact?: (contact: SavedContact) => void
 }) {
   const [editing, setEditing] = useState<RegistryContact | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   if (!company) return null
 
-  const saveContact = (contact: RegistryContact) => {
-    const next = company.contacts
-      .filter((item) => item.id !== contact.id)
-      .map((item) => contact.isPrimary ? { ...item, isPrimary: false } : item)
-    const updated = [...next, contact]
-    onContactsChange(updated)
+  const saveContact = async (contact: RegistryContact) => {
+    if (company.isDemo) {
+      const next = company.contacts.filter((item) => item.id !== contact.id).map((item) => contact.isPrimary ? { ...item, isPrimary: false } : item)
+      onContactsChange([...next, contact])
+      setEditorOpen(false)
+      setEditing(null)
+      toast.success("Демо-контакт обновлён только в интерфейсе")
+      return
+    }
+    const leadId = contact.leadId ?? company.leads.find((lead) => lead.originalLeadId)?.originalLeadId
+    if (!leadId) throw new Error("Для сохранения контакта компании нужна связанная запись лида")
+    const [firstName, ...lastNameParts] = contact.name.trim().split(/\s+/)
+    const input = {
+      leadId,
+      firstName,
+      lastName: lastNameParts.join(" "),
+      role: contact.role,
+      phone: contact.phones[0] ?? "",
+      email: contact.emails[0] ?? "",
+      telegram: contact.telegram ?? "",
+      contactMethods: contact.contactMethods ?? [],
+      comment: contact.comment ?? "",
+    }
+    const saved = contact.savedContactId
+      ? await updateLeadContact(contact.savedContactId, input)
+      : await createLeadContact(input)
+    onSavedContact?.(saved)
+    const persisted: RegistryContact = {
+      ...contact,
+      id: `saved-contact-${saved.id}`,
+      leadId: saved.leadId,
+      savedContactId: saved.id,
+      name: saved.name,
+      role: saved.role,
+      phones: [saved.phone, ...saved.contactMethods.filter((method) => method.kind === "phone").map((method) => method.value)].filter(Boolean),
+      emails: [saved.email, ...saved.contactMethods.filter((method) => method.kind === "email").map((method) => method.value)].filter(Boolean),
+      telegram: saved.telegram,
+      contactMethods: saved.contactMethods,
+      comment: saved.comment || undefined,
+    }
+    const next = company.contacts.filter((item) => item.id !== contact.id).map((item) => contact.isPrimary ? { ...item, isPrimary: false } : item)
+    onContactsChange([...next, persisted])
     setEditorOpen(false)
     setEditing(null)
-    toast.success("Контакт обновлён в интерфейсе", { description: "Изменения не сохранены в базе данных." })
+    toast.success("Контакт сохранён")
   }
 
   return (
@@ -143,6 +188,8 @@ export function CompanyContactsDialog({
                     <div className="registry-contact-methods">
                       {contact.phones.map((phone) => <a key={phone} href={`tel:${phone.replace(/[^+\d]/g, "")}`}><Phone />{phone}</a>)}
                       {contact.emails.map((email) => <a key={email} href={`mailto:${email}`}><Mail />{email}</a>)}
+                      {contact.telegram && <a href={contact.telegram.startsWith("http") ? contact.telegram : `https://t.me/${contact.telegram.replace(/^@/, "")}`} target="_blank" rel="noreferrer">Telegram: {contact.telegram}</a>}
+                      {(contact.contactMethods ?? []).filter((method) => method.id !== "__telegram__").map((method) => <span key={method.id}>{method.kind === "messenger" ? `${method.provider || "Мессенджер"}: ` : method.kind === "phone" ? "Телефон: " : "Email: "}{method.value}</span>)}
                     </div>
                     {contact.comment && <p className="registry-contact-comment">{contact.comment}</p>}
                   </div>
@@ -278,6 +325,8 @@ export function ContactDetailsDialog({
           <div><span>Должность</span><strong>{contact.role || "—"}</strong></div>
           <div><span>Телефон</span><strong>{contact.phones.join(", ") || "—"}</strong></div>
           <div><span>Email</span><strong>{contact.emails.join(", ") || "—"}</strong></div>
+          <div><span>Telegram</span><strong>{contact.telegram || "—"}</strong></div>
+          {(contact.contactMethods ?? []).filter((method) => method.id !== "__telegram__").map((method) => <div key={method.id}><span>{method.kind === "messenger" ? method.provider || "Мессенджер" : method.kind === "phone" ? "Дополнительный телефон" : "Дополнительный email"}</span><strong>{method.value}</strong></div>)}
           <div><span>Комментарий</span><strong>{contact.comment || "—"}</strong></div>
         </div>
         <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Закрыть</Button></DialogFooter>

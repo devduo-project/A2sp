@@ -1,8 +1,8 @@
 "use server"
 
-import { asc, eq } from "drizzle-orm"
+import { and, asc, eq } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { leadContacts, leadTasks, leads } from "@/lib/db/schema"
+import { leadContacts, leadTasks, leads, type ContactMethod } from "@/lib/db/schema"
 import { taskPriorities } from "@/lib/task-priorities"
 
 export type SavedContact = {
@@ -12,6 +12,8 @@ export type SavedContact = {
   role: string
   phone: string
   email: string
+  telegram: string
+  contactMethods: ContactMethod[]
   comment: string
 }
 
@@ -31,10 +33,27 @@ export type ContactInput = {
   role: string
   phone: string
   email: string
+  telegram?: string
+  contactMethods?: ContactMethod[]
   comment: string
 }
 
 const text = (value: unknown, max: number) => (typeof value === "string" ? value.trim().slice(0, max) : "")
+
+function normalizeContactMethods(input: unknown, telegram: unknown): ContactMethod[] {
+  const methods = Array.isArray(input) ? input.flatMap((method, index) => {
+    if (!method || typeof method !== "object") return []
+    const item = method as Partial<ContactMethod>
+    if (item.kind !== "messenger" && item.kind !== "phone" && item.kind !== "email") return []
+    const value = text(item.value, 500)
+    if (!value) return []
+    if (item.kind === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) throw new Error("Некорректный email")
+    return [{ id: text(item.id, 100) || `method-${index}`, kind: item.kind, provider: item.kind === "messenger" ? text(item.provider, 60) || "Мессенджер" : undefined, value }]
+  }) : []
+  const telegramValue = text(telegram, 500)
+  const withoutTelegram = methods.filter((method) => method.id !== "__telegram__")
+  return telegramValue ? [{ id: "__telegram__", kind: "messenger", provider: "Telegram", value: telegramValue }, ...withoutTelegram] : withoutTelegram
+}
 
 async function assertLeadExists(leadId: string) {
   const [lead] = await db.select({ id: leads.id }).from(leads).where(eq(leads.id, leadId)).limit(1)
@@ -70,6 +89,7 @@ export async function createLeadContact(input: ContactInput): Promise<SavedConta
   if (!firstName) throw new Error("Укажите имя контакта")
   const email = text(input.email, 200)
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Некорректный email")
+  const contactMethods = normalizeContactMethods(input.contactMethods, input.telegram)
 
   await assertLeadExists(leadId)
   const lastName = text(input.lastName, 120)
@@ -82,9 +102,32 @@ export async function createLeadContact(input: ContactInput): Promise<SavedConta
       role: text(input.role, 160),
       phone: text(input.phone, 40),
       email,
+      contactMethods,
       comment: text(input.comment, 2000),
     })
     .returning()
+  return toSavedContact(row)
+}
+
+export async function updateLeadContact(id: number, input: ContactInput): Promise<SavedContact> {
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error("Некорректный контакт")
+  const leadId = text(input.leadId, 64)
+  const firstName = text(input.firstName, 120)
+  if (!leadId || !firstName) throw new Error("Укажите имя контакта")
+  const email = text(input.email, 200)
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Некорректный email")
+  await assertLeadExists(leadId)
+  const [row] = await db.update(leadContacts).set({
+    leadId,
+    firstName,
+    lastName: text(input.lastName, 120),
+    role: text(input.role, 160),
+    phone: text(input.phone, 40),
+    email,
+    contactMethods: normalizeContactMethods(input.contactMethods, input.telegram),
+    comment: text(input.comment, 2000),
+  }).where(and(eq(leadContacts.id, id), eq(leadContacts.leadId, leadId))).returning()
+  if (!row) throw new Error("Контакт не найден")
   return toSavedContact(row)
 }
 
@@ -101,6 +144,8 @@ function toSavedContact(row: typeof leadContacts.$inferSelect): SavedContact {
     role: row.role,
     phone: row.phone,
     email: row.email,
+    telegram: row.contactMethods.find((method) => method.id === "__telegram__")?.value ?? "",
+    contactMethods: row.contactMethods,
     comment: row.comment,
   }
 }

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { leadStageColors, type LeadStage } from "@/lib/lead-stages"
 import { parseRegistryDate, type CompanyViewModel, type RegistryContact, type RegistryRecord } from "@/lib/company-registry-data"
 import { CompanyContactsDialog, CompanyRecordsDialog } from "@/components/company-registry-dialogs"
+import type { SavedContact } from "@/app/actions/lead-records"
 
 type SortKey = "name" | "record" | "createdAt" | "createdBy" | "leadAmount" | "contractAmount" | "customerDebt"
 type SortDirection = "asc" | "desc"
@@ -33,9 +34,9 @@ function newestRecord(company: CompanyViewModel) {
 function hasContactDetailsBeyondPrimary(company: CompanyViewModel) {
   const primary = company.contacts.find((contact) => contact.isPrimary)
   return company.contacts.some((contact) => {
-    if (contact.id !== primary?.id) return contact.phones.length > 0 || contact.emails.length > 0
-    return contact.phones.length > 1 || contact.emails.length > 1
-  }) || (!primary && company.contacts.some((contact) => contact.phones.length || contact.emails.length))
+    if (contact.id !== primary?.id) return contact.phones.length > 0 || contact.emails.length > 0 || Boolean(contact.telegram) || Boolean(contact.contactMethods?.length)
+    return contact.phones.length > 1 || contact.emails.length > 1 || Boolean(contact.telegram) || Boolean(contact.contactMethods?.length)
+  }) || (!primary && company.contacts.some((contact) => contact.phones.length || contact.emails.length || contact.telegram || contact.contactMethods?.length))
 }
 
 export function CompaniesTable({
@@ -43,11 +44,13 @@ export function CompaniesTable({
   onCompanySelect,
   onContactsChange,
   onRecordSelect,
+  onSavedContact,
 }: {
   companies: CompanyViewModel[]
   onCompanySelect: (company: CompanyViewModel) => void
   onContactsChange: (companyId: string, contacts: RegistryContact[]) => void
   onRecordSelect: (type: "Лид" | "Сделка", record: RegistryRecord) => boolean
+  onSavedContact?: (contact: SavedContact) => void
 }) {
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" })
   const [search, setSearch] = useState("")
@@ -69,7 +72,7 @@ export function CompaniesTable({
     const terms = search.toLocaleLowerCase("ru").trim().split(/\s+/).filter(Boolean)
     const filtered = companies.filter((company) => {
       const primary = company.contacts.find((contact) => contact.isPrimary)
-      const contactSearch = company.contacts.flatMap((contact) => [contact.name, contact.phones.join(" "), contact.emails.join(" ")]).join(" ")
+      const contactSearch = company.contacts.flatMap((contact) => [contact.name, contact.phones.join(" "), contact.emails.join(" "), contact.telegram ?? "", (contact.contactMethods ?? []).map((method) => `${method.provider ?? ""} ${method.value}`).join(" ")]).join(" ")
       const haystack = `${company.legalName} ${primary?.name ?? ""} ${contactSearch}`.toLocaleLowerCase("ru")
       const stageMatch = stageFilter === "all" || [...company.leads, ...company.deals].some((record) => record.stage === stageFilter)
       return terms.every((term) => haystack.includes(term))
@@ -164,6 +167,8 @@ export function CompaniesTable({
                         <div className="registry-contact-cell-content">
                           {primary?.phones[0] && <a href={`tel:${primary.phones[0].replace(/[^+\d]/g, "")}`} onClick={(event) => event.stopPropagation()}><Phone />{primary.phones[0]}</a>}
                           {primary?.emails[0] && <a href={`mailto:${primary.emails[0]}`} onClick={(event) => event.stopPropagation()}><Mail />{primary.emails[0]}</a>}
+                          {primary?.telegram && <a href={primary.telegram.startsWith("http") ? primary.telegram : `https://t.me/${primary.telegram.replace(/^@/, "")}`} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Telegram: {primary.telegram}</a>}
+                          {(primary?.contactMethods ?? []).filter((method) => method.id !== "__telegram__").map((method) => <span key={method.id}>{method.kind === "messenger" ? `${method.provider || "Мессенджер"}: ` : method.kind === "phone" ? "Телефон: " : "Email: "}{method.value}</span>)}
                           {!primary && <span className="registry-muted">Нет основного контакта</span>}
                         </div>
                         {hasAdditionalContacts && <Button className="registry-link-button" variant="ghost" size="icon" aria-label={`Открыть контакты компании ${company.legalName}`} title="Контакты компании" onClick={(event) => { event.stopPropagation(); setContactsCompanyId(company.id) }}><ExternalLink /></Button>}
@@ -188,8 +193,8 @@ export function CompaniesTable({
           {!rows.length && <div className="leads-table-empty">Компании не найдены. Измените поиск или фильтры.</div>}
         </div>
       </div>
-      <p className="registry-footnote">Демонстрационные строки помечены «Демо». Изменения контактов применяются только в текущем интерфейсе.</p>
-      <CompanyContactsDialog company={contactsCompany} open={Boolean(contactsCompany)} onOpenChange={(open) => { if (!open) setContactsCompanyId(null) }} onContactsChange={(contacts) => { if (contactsCompany) onContactsChange(contactsCompany.id, contacts) }} />
+      <p className="registry-footnote">Демонстрационные строки помечены «Демо»; их изменения остаются только в интерфейсе. Данные контактов реальных компаний сохраняются в CRM.</p>
+      <CompanyContactsDialog company={contactsCompany} open={Boolean(contactsCompany)} onOpenChange={(open) => { if (!open) setContactsCompanyId(null) }} onContactsChange={(contacts) => { if (contactsCompany) onContactsChange(contactsCompany.id, contacts) }} onSavedContact={onSavedContact} />
       <CompanyRecordsDialog company={recordsCompany} open={Boolean(recordsCompany)} onOpenChange={(open) => { if (!open) setRecordsCompanyId(null) }} onRecordSelect={onRecordSelect} />
     </div>
   )

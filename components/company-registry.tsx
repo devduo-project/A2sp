@@ -18,6 +18,7 @@ export function CompanyRegistry({
   deals,
   onLeadSelect,
   onDealSelect,
+  onSavedContact,
 }: {
   view: RegistryView
   leads: Lead[]
@@ -25,6 +26,7 @@ export function CompanyRegistry({
   deals: ExistingDeal[]
   onLeadSelect: (leadId: string) => boolean
   onDealSelect: (dealId: string) => boolean
+  onSavedContact?: (contact: SavedContact) => void
 }) {
   const [companies, setCompanies] = useState(() => buildCompanyViewModels(leads, savedContacts, deals, demoCompanies))
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
@@ -44,6 +46,7 @@ export function CompanyRegistry({
           companies={companies}
           onCompanySelect={(company) => setSelectedCompanyId(company.id)}
           onContactsChange={updateCompanyContacts}
+          onSavedContact={onSavedContact}
           onRecordSelect={(type, record) => {
             if (type === "Лид" && record.originalLeadId) return onLeadSelect(record.originalLeadId)
             if (type === "Сделка") return onDealSelect(record.id)
