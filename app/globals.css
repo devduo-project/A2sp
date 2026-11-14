@@ -309,3 +309,5 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 .lead-pipeline-step.is-current { background: color-mix(in oklab, var(--stage-color) 30%, white); border-color: var(--stage-color); color: var(--foreground); font-weight: 750; box-shadow: 0 4px 14px color-mix(in oklab, var(--stage-color) 30%, transparent); cursor: default; }
 .lead-pipeline-step:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .lead-pipeline[aria-busy="true"] .lead-pipeline-step { cursor: progress; }
+.deals-placeholder { width: 100%; min-height: 60vh; flex: none; justify-content: center; align-items: center; border: 1px dashed var(--border); border-radius: 16px; background: oklch(1 0 0 / 0.35); }
+.deals-placeholder [data-slot="empty-title"] { font-size: 20px; font-weight: 700; color: var(--foreground); }
