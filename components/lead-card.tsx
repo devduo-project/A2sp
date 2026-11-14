@@ -43,6 +43,8 @@ export type Lead = {
   days: number
   stageEnteredAt?: string
   stage: string
+  email?: string
+  emails?: string[]
 }
 
 type ContactRecord = { id: number; name: string; role: string; phone: string; email: string; primary?: boolean; manager?: string }
@@ -62,6 +64,45 @@ const initialContacts: ContactRecord[] = [
 ]
 
 function copyValue(value: string, label: string) { navigator.clipboard?.writeText(value); toast.success(label) }
+
+function normalizeContactValues(...values: unknown[]) {
+  const collected = values.flatMap((value) => Array.isArray(value) ? value : [value])
+  return [...new Set(collected.filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean))]
+}
+
+function ContactActionButton({ kind, values, active, setActive, onManage }: { kind: "phone" | "email"; values: string[]; active: boolean; setActive: (kind: "phone" | "email" | null) => void; onManage?: () => void }) {
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pinned = useRef(false)
+  const [position, setPosition] = useState({ left: 0, top: 0, above: false })
+  const label = kind === "phone" ? "Телефоны компании" : "Email компании"
+  const Icon = kind === "phone" ? Phone : Mail
+  const updatePosition = () => {
+    const rect = triggerRef.current?.getBoundingClientRect()
+    if (rect) setPosition({ left: Math.max(12, Math.min(rect.left, window.innerWidth - 292)), top: rect.bottom + 8, above: window.innerHeight - rect.bottom < 190 })
+  }
+  const show = () => {
+    if (!values.length) return
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    updatePosition()
+    setActive(kind)
+  }
+  const scheduleClose = () => {
+    if (pinned.current) return
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    closeTimer.current = setTimeout(() => setActive(null), 180)
+  }
+  useEffect(() => {
+    if (!active) return
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") { pinned.current = false; setActive(null) } }
+    const reposition = () => updatePosition()
+    document.addEventListener("keydown", onKeyDown)
+    window.addEventListener("resize", reposition)
+    window.addEventListener("scroll", reposition, true)
+    return () => { document.removeEventListener("keydown", onKeyDown); window.removeEventListener("resize", reposition); window.removeEventListener("scroll", reposition, true) }
+  }, [active])
+  return <><Button ref={triggerRef} className={kind === "phone" ? "lead-card-contact-phone" : "lead-card-contact-email"} size="icon" variant="ghost" type="button" title={label} aria-label={`${label}${values.length ? `, ${values.length}` : ", нет данных"}`} aria-expanded={active} aria-haspopup="true" onMouseEnter={() => { closeTimer.current = setTimeout(show, 240) }} onMouseLeave={scheduleClose} onFocus={show} onBlur={scheduleClose} onClick={(event) => { event.stopPropagation(); if (active && pinned.current) { pinned.current = false; setActive(null) } else { pinned.current = true; show() } }}>{<Icon />}</Button>{active && values.length > 0 && typeof document !== "undefined" && createPortal(<div className="lead-contact-tooltip" role="tooltip" style={{ left: position.left, top: position.top, transform: position.above ? "translateY(-100%)" : undefined }} onMouseEnter={() => { if (closeTimer.current) clearTimeout(closeTimer.current) }} onMouseLeave={scheduleClose}><strong>{kind === "phone" ? "Телефоны" : "Email"}</strong>{values.map((value) => <a key={value} href={kind === "phone" ? `tel:${value.replace(/[^+\d]/g, "")}` : `mailto:${value}`} onClick={(event) => event.stopPropagation()}>{kind === "phone" ? <Phone aria-hidden="true" /> : <Mail aria-hidden="true" />}<span>{value}</span></a>)}{kind === "phone" && onManage && <button type="button" className="lead-contact-tooltip-manage" onClick={(event) => { event.stopPropagation(); pinned.current = false; setActive(null); onManage() }}>Изменить телефоны</button>}</div>, document.body)}</>
+}
 
 function formatRubles(value: string) {
   const normalized = value.replace(/[^\d,.-]/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/\.(?=.*\.)/g, "")
@@ -103,7 +144,8 @@ function CompanyPhonesMenu({ phones, onClose, onSave }: { phones: string[]; onCl
 
 export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isDragging, dragProps, cardConfig }: LeadCardProps) {
   const [phoneOpen, setPhoneOpen] = useState(false)
-  const [companyPhones, setCompanyPhones] = useState<string[]>(() => (lead.companyPhones?.length ? lead.companyPhones : lead.phone ? [lead.phone] : []))
+  const [activeContactTooltip, setActiveContactTooltip] = useState<"phone" | "email" | null>(null)
+  const [companyPhones, setCompanyPhones] = useState<string[]>(() => normalizeContactValues(lead.companyPhones, lead.phone))
   const [addressOpen, setAddressOpen] = useState(false)
   const [contactsOpen, setContactsOpen] = useState(false)
   const [localContacts, setContacts] = useState<ContactRecord[]>(initialContacts)
@@ -112,6 +154,9 @@ export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isD
     .map((contact) => ({ id: SAVED_CONTACT_ID_OFFSET + contact.id, name: contact.name, role: contact.role, phone: contact.phone, email: contact.email }))
     .filter((contact) => !localIds.has(contact.id))
   const contacts = [...localContacts, ...storedContacts]
+  const leadSavedContacts = savedContacts.filter((contact) => contact.leadId === lead.id)
+  const phoneValues = normalizeContactValues(companyPhones, lead.companyPhones, lead.phone, leadSavedContacts.map((contact) => contact.phone))
+  const emailValues = normalizeContactValues(lead.emails, lead.email, leadSavedContacts.map((contact) => contact.email))
   const [quoteStatus, setQuoteStatus] = useState(lead.quoteStatus ?? "КП озвучено")
   const cardRef = useRef<HTMLDivElement>(null)
   const saveCompanyPhones = async (phones: string[]) => {
@@ -153,7 +198,7 @@ export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isD
     return <div key={id} className={cn("lead-card-info-item", titleStyle && "lead-card-title-item", titleStyle && `is-${titleStyle}`)}>{contentNode}</div>
   }
   const renderItems = (ids: LeadCardElementId[]) => ids.map((id) => renderContent(id, visibleInfoOrder.indexOf(id)))
-  const contactActions = <div className="lead-card-header-actions" onClick={(event) => event.stopPropagation()}><Button className="lead-card-contact-phone" size="icon" variant="ghost" title="Телефоны компании" aria-label="Телефоны компании" onClick={() => setPhoneOpen((open) => !open)}><Phone /></Button><Button className="lead-card-contact-contacts" size="icon" variant="ghost" title={`Контакты · ${contacts.length}`} aria-label={`Открыть контакты, ${contacts.length}`} onClick={() => { setPhoneOpen(false); setContactsOpen(true) }}><Users /></Button><span className="lead-card-email-slot" aria-hidden="true" /></div>
+  const contactActions = <div className="lead-card-header-actions" onClick={(event) => event.stopPropagation()}><ContactActionButton kind="phone" values={phoneValues} active={activeContactTooltip === "phone"} setActive={setActiveContactTooltip} onManage={() => setPhoneOpen(true)} /><ContactActionButton kind="email" values={emailValues} active={activeContactTooltip === "email"} setActive={setActiveContactTooltip} /><Button className="lead-card-contact-contacts" size="icon" variant="ghost" title={`Контакты · ${contacts.length}`} aria-label={`Открыть контакты, ${contacts.length}`} onClick={() => { setPhoneOpen(false); setContactsOpen(true) }}><Users /></Button></div>
   return (
     <div className={cn("lead-card", isDragging && "is-dragging")} data-lead-id={lead.id} {...dragProps} ref={cardRef} role="button" tabIndex={0} onClick={onClick} onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick() } }}>
       <div className="lead-card-info">
