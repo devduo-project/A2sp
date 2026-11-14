@@ -2,10 +2,9 @@
 
 import { useState, type FormEvent } from "react"
 import { toast } from "sonner"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createLead } from "@/app/actions/leads"
 import type { SavedContact } from "@/app/actions/lead-records"
 import type { Lead } from "@/components/lead-card"
@@ -179,27 +178,25 @@ function NewLeadForm({ onClose, onCreated }: Omit<NewLeadDialogProps, "open">) {
         </Field>
       </div>
 
-      <fieldset className="glass-field glass-service" aria-invalid={Boolean(errors.service)}>
-        <legend>
-          Услуга<b aria-hidden> *</b>
-        </legend>
-        <div className="glass-checks">
-          {serviceChoices.map((choice) => (
-            <label key={choice.value} className="glass-check">
-              <Checkbox checked={form.service === choice.value} onCheckedChange={(checked) => update("service", checked ? choice.value : "")} />
-              {choice.label}
-            </label>
-          ))}
-        </div>
+      <Field label="Услуга" error={errors.service} required>
+        <Select value={form.service} onValueChange={(value) => update("service", value)}>
+          <SelectTrigger className="w-full" aria-label="Услуга" aria-invalid={Boolean(errors.service)}>
+            <SelectValue placeholder="Выберите услугу" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {serviceChoices.map((choice) => (
+                <SelectItem key={choice.value} value={choice.value}>
+                  {choice.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
         {form.service === OTHER_SERVICE && (
           <Input autoFocus value={form.otherService} maxLength={200} placeholder="Название услуги или запроса" aria-label="Название услуги" onChange={(event) => update("otherService", event.target.value)} />
         )}
-        {errors.service && (
-          <em role="alert" className="glass-error">
-            {errors.service}
-          </em>
-        )}
-      </fieldset>
+      </Field>
 
       <div className="glass-row">
         <Field label="Сумма">
