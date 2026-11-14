@@ -313,3 +313,7 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 .deals-placeholder [data-slot="empty-title"] { font-size: 20px; font-weight: 700; color: var(--foreground); }
 
 .crm-shell:not(.list-view) .pipeline .column-cards { margin-top: 18px; }
+
+/* Колонки растут по содержимому, прокручивается страница */
+.crm-shell:not(.list-view) .pipeline { overflow-y: visible; align-items: stretch; }
+.crm-shell:not(.list-view) .pipeline .pipeline-column { height: auto; min-height: 520px; overflow: visible; }
