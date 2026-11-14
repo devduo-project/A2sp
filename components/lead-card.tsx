@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Building2, Copy, Mail, MapPin, Phone, Plus, Trash2, Users, X } from "lucide-react"
+import { Building2, Copy, Mail, MapPin, MessageCircle, Phone, Plus, Send, Trash2, Users, X } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -148,19 +148,49 @@ function ContactForm({ contact, onSave, onCancel }: { contact?: ContactRecord; o
   </div>
 }
 
-function ContactEmailAction({ email, iconOnly = false }: { email: string; iconOnly?: boolean }) {
+type ContactChannel = { kind: ContactMethod["kind"]; value: string; provider?: string }
+
+function ContactChannelAction({ channel }: { channel: ContactChannel }) {
   const [open, setOpen] = useState(false)
-  const compose = (provider: "mailto" | "yandex" | "gmail") => {
-    const urls = {
-      mailto: `mailto:${email}`,
-      yandex: `https://mail.yandex.ru/compose?to=${encodeURIComponent(email)}`,
-      gmail: `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}`,
-    }
-    if (provider === "mailto") window.location.href = urls.mailto
-    else window.open(urls[provider], "_blank", "noopener,noreferrer")
+  const value = channel.value.trim()
+  const provider = channel.provider?.toLowerCase() ?? ""
+  const isSupportedMessenger = channel.kind === "messenger" && (["telegram", "whatsapp", "viber", "skype"].includes(provider)) && (provider === "telegram" ? /^(?:@?[A-Za-z0-9_]{5,32}|https:\/\/t\.me\/[A-Za-z0-9_]{5,32}\/?|\+?[\d\s().-]{7,})$/i.test(value) : provider === "whatsapp" || provider === "viber" ? value.replace(/\D/g, "").length >= 7 : Boolean(value.trim()))
+  const icon = channel.kind === "phone" ? <Phone aria-hidden="true" /> : channel.kind === "email" ? <Mail aria-hidden="true" /> : provider === "telegram" ? <Send aria-hidden="true" /> : <MessageCircle aria-hidden="true" />
+  const composeEmail = (service: "mail" | "gmail" | "yandex") => {
+    const url = service === "gmail" ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(value)}` : service === "yandex" ? `https://mail.yandex.ru/compose?to=${encodeURIComponent(value)}` : `mailto:${value}`
+    if (service === "mail") window.location.href = url
+    else window.open(url, "_blank", "noopener,noreferrer")
     setOpen(false)
   }
-  return <span className="contact-email-action"><button type="button" className={iconOnly ? "contact-email-icon-trigger" : "contact-email-trigger"} aria-label={`Написать на ${email}`} aria-expanded={open} onClick={() => setOpen((current) => !current)}>{iconOnly ? <Mail aria-hidden="true" /> : <><Mail aria-hidden="true" />{email}</>}</button>{open && <span className="contact-email-menu" role="group" aria-label="Выберите почтовое приложение"><button type="button" onClick={() => compose("mailto")}>Mail</button><button type="button" onClick={() => compose("yandex")}>Яндекс Почта</button><button type="button" onClick={() => compose("gmail")}>Gmail</button></span>}</span>
+  const openMessenger = () => {
+    let url = ""
+    if (provider === "telegram") url = value.startsWith("https://") ? value : `https://t.me/${value.replace(/^@/, "")}`
+    if (provider === "whatsapp") url = `https://wa.me/${value.replace(/\D/g, "")}`
+    if (provider === "viber") url = `viber://chat?number=${encodeURIComponent(value.replace(/\D/g, ""))}`
+    if (provider === "skype") url = `skype:${encodeURIComponent(value)}?chat`
+    if (url) window.open(url, "_blank", "noopener,noreferrer")
+    setOpen(false)
+  }
+  if (!value) return null
+  return <div className="contact-channel-row"><span className="contact-channel-icon-wrap"><button type="button" className="contact-channel-icon" aria-label={channel.kind === "messenger" ? `Действия: ${channel.provider ?? "мессенджер"}` : `Действия: ${value}`} aria-expanded={open} disabled={channel.kind === "messenger" && !isSupportedMessenger} title={channel.kind === "messenger" && !isSupportedMessenger ? "Действие недоступно" : undefined} onClick={() => setOpen((current) => !current)}>{icon}</button>{open && <div className="contact-channel-menu" role="group" aria-label="Действия со способом связи">{channel.kind === "phone" ? <><a href={`tel:${value.replace(/[^+\d]/g, "")}`} onClick={() => setOpen(false)}>Позвонить</a><button type="button" onClick={() => { copyValue(value, "Номер скопирован"); setOpen(false) }}>Скопировать номер</button></> : channel.kind === "email" ? <><button type="button" onClick={() => composeEmail("mail")}>Написать · Mail</button><button type="button" onClick={() => composeEmail("gmail")}>Написать · Gmail</button><button type="button" onClick={() => composeEmail("yandex")}>Написать · Яндекс Почта</button><button type="button" onClick={() => { copyValue(value, "Email скопирован"); setOpen(false) }}>Скопировать адрес</button></> : isSupportedMessenger ? <button type="button" onClick={openMessenger}>Открыть чат</button> : <span>Действие недоступно</span>}</div>}</span><span className="contact-channel-value" title={value}>{value}</span></div>
+}
+
+function getContactChannels(contact: ContactRecord): ContactChannel[] {
+  const candidates: ContactChannel[] = [
+    ...(contact.phone ? [{ kind: "phone" as const, value: contact.phone }] : []),
+    ...(contact.email ? [{ kind: "email" as const, value: contact.email }] : []),
+    ...(contact.telegram ? [{ kind: "messenger" as const, provider: "Telegram", value: contact.telegram }] : []),
+    ...(contact.contactMethods ?? []).map(({ kind, provider, value }) => ({ kind, provider, value })),
+  ]
+  const seen = new Set<string>()
+  return candidates.filter(({ kind, provider, value }) => {
+    const normalized = value.trim().toLowerCase()
+    if (!normalized) return false
+    const key = `${kind}:${kind === "messenger" ? provider?.toLowerCase() : ""}:${normalized}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }
 
 function ContactsModal({ contacts, companyName, onClose, onSave }: { contacts: ContactRecord[]; companyName: string; onClose: () => void; onSave: (contact: ContactRecord) => Promise<void> }) {
@@ -169,7 +199,7 @@ function ContactsModal({ contacts, companyName, onClose, onSave }: { contacts: C
   const dialogRef = useRef<HTMLDivElement>(null)
   useEffect(() => { const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose(); document.addEventListener("keydown", onKey); dialogRef.current?.focus(); const previousOverflow = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = previousOverflow } }, [onClose])
   const save = async (contact: ContactRecord) => { try { await onSave(contact); setAdding(false); setEditing(undefined); toast.success("Контакт сохранён") } catch (error) { toast.error(error instanceof Error ? error.message : "Не удалось сохранить контакт") } }
-  return typeof document === "undefined" ? null : createPortal(<div className="contacts-overlay" role="presentation" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="contacts-modal" onClick={(event) => event.stopPropagation()} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="contacts-title" onMouseDown={(event) => event.stopPropagation()}><header className="contacts-modal-header"><div><h2 id="contacts-title">Контакты компании</h2><p className="contacts-company-name">{companyName}</p></div><button className="modal-close" aria-label="Закрыть контакты" title="Закрыть" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose() }}><X /></button></header>{adding || editing ? <><ContactForm contact={editing} onSave={save} onCancel={() => { setAdding(false); setEditing(undefined) }} /></> : <><div className="contacts-modal-toolbar"><span>{contacts.length ? `Контакты · ${contacts.length}` : "Контакты не добавлены"}</span><Button size="sm" onClick={() => setAdding(true)}><Plus data-icon="inline-start" /> Добавить контакт</Button></div><div className="contact-list">{contacts.length ? contacts.map((contact) => <article className="contact-list-item" key={contact.id}><div className="contact-list-main"><div className="contact-avatar">{contact.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}</div><div><h3>{contact.name} {contact.primary && <Badge variant="secondary">Основной контакт</Badge>}</h3><p>{contact.role}{contact.manager ? ` · Ответственный: ${contact.manager}` : ""}</p><div className="contact-detail-row">{contact.phone && <a href={`tel:${contact.phone.replace(/\s/g, "")}`}><Phone />{contact.phone}</a>}{contact.email && <ContactEmailAction email={contact.email} />}{contact.telegram && <a href={contact.telegram.startsWith("http") ? contact.telegram : `https://t.me/${contact.telegram.replace(/^@/, "")}`} target="_blank" rel="noreferrer">Telegram: {contact.telegram}</a>}{(contact.contactMethods ?? []).map((method) => <span key={method.id}>{method.kind === "messenger" ? `${method.provider || "Мессенджер"}: ` : method.kind === "phone" ? "Телефон: " : "Email: "}{method.value}</span>)}</div></div></div><div className="contact-item-actions"><Button size="icon" variant="ghost" title="Позвонить" aria-label="Позвонить" disabled={!contact.phone} asChild><a href={`tel:${contact.phone.replace(/\s/g, "")}`}><Phone /></a></Button>{contact.email ? <ContactEmailAction email={contact.email} iconOnly /> : <Button size="icon" variant="ghost" title="Написать" aria-label="Написать" disabled><Mail /></Button>}<Button size="sm" variant="outline" onClick={() => setEditing(contact)}>Изменить</Button></div></article>) : <div className="contacts-empty"><Users /><p>Конта��ты не добавлены</p><Button onClick={() => setAdding(true)}><Plus data-icon="inline-start" /> Добавить контакт</Button></div>}</div></>}</section></div>, document.body)
+  return typeof document === "undefined" ? null : createPortal(<div className="contacts-overlay" role="presentation" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="contacts-modal" onClick={(event) => event.stopPropagation()} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="contacts-title" onMouseDown={(event) => event.stopPropagation()}><header className="contacts-modal-header"><div><h2 id="contacts-title">Контакты компании</h2><p className="contacts-company-name">{companyName}</p></div><button className="modal-close" aria-label="Закрыть контакты" title="Закрыть" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose() }}><X /></button></header>{adding || editing ? <><ContactForm contact={editing} onSave={save} onCancel={() => { setAdding(false); setEditing(undefined) }} /></> : <><div className="contacts-modal-toolbar"><span>{contacts.length ? `Контакты · ${contacts.length}` : "Контакты не добавлены"}</span><Button size="sm" onClick={() => setAdding(true)}><Plus data-icon="inline-start" /> Добавить контакт</Button></div><div className="contact-list">{contacts.length ? contacts.map((contact) => <article className="contact-list-item" key={contact.id}><div className="contact-list-main"><div className="contact-avatar">{contact.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}</div><div><h3>{contact.name} {contact.primary && <Badge variant="secondary">Основной контакт</Badge>}</h3><p>{contact.role}{contact.manager ? ` · Ответственный: ${contact.manager}` : ""}</p><div className="contact-detail-row">{getContactChannels(contact).map((channel, index) => <ContactChannelAction key={`${channel.kind}-${channel.provider ?? ""}-${channel.value}-${index}`} channel={channel} />)}</div></div></div><div className="contact-item-actions"><Button size="sm" variant="outline" onClick={() => setEditing(contact)}>Изменить</Button></div></article>) : <div className="contacts-empty"><Users /><p>Конта��ты не добавлены</p><Button onClick={() => setAdding(true)}><Plus data-icon="inline-start" /> Добавить контакт</Button></div>}</div></>}</section></div>, document.body)
 }
 
 function AddressModal({ address, onClose }: { address?: Lead["address"]; onClose: () => void }) {
