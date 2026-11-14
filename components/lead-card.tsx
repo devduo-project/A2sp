@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
 import { createPortal } from "react-dom"
 import { Building2, Copy, Mail, MapPin, MessageCircle, Phone, Plus, Send, Trash2, Users, X } from "lucide-react"
 import { toast } from "sonner"
@@ -126,7 +126,7 @@ function ContactForm({ contact, onSave, onCancel }: { contact?: ContactRecord; o
     onSave({ ...form, telegram, contactMethods: cleanMethods })
   }
   return <div className="contact-form">
-    <label>ФИО сотр��дника<Input value={form.name} onChange={(e) => update("name", e.target.value)} autoFocus /></label>
+    <label>ФИО сотр����дника<Input value={form.name} onChange={(e) => update("name", e.target.value)} autoFocus /></label>
     <label>Должность<Input value={form.role} onChange={(e) => update("role", e.target.value)} /></label>
     <label>Телефон<Input type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} /></label>
     <label>Email<Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} /></label>
@@ -202,9 +202,23 @@ function ContactsModal({ contacts, companyName, createdBy, onClose, onSave }: { 
   return typeof document === "undefined" ? null : createPortal(<div className="contacts-overlay" role="presentation" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="contacts-modal" onClick={(event) => event.stopPropagation()} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="contacts-title" onMouseDown={(event) => event.stopPropagation()}><header className="contacts-modal-header"><div><h2 id="contacts-title">Контакты компании</h2><p className="contacts-company-name">{companyName}</p><p className="contacts-created-by">Кто создал: {createdBy || "Не указан"}</p></div><button className="modal-close" aria-label="Закрыть контакты" title="Закрыть" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose() }}><X /></button></header>{adding || editing ? <><ContactForm contact={editing} onSave={save} onCancel={() => { setAdding(false); setEditing(undefined) }} /></> : <><div className="contacts-modal-toolbar"><span>{contacts.length ? `Контакты · ${contacts.length}` : "Контакты не добавлены"}</span><Button size="sm" onClick={() => setAdding(true)}><Plus data-icon="inline-start" /> Добавить контакт</Button></div><div className="contact-list">{contacts.length ? contacts.map((contact) => <article className="contact-list-item" key={contact.id}><div className="contact-list-main"><div className="contact-avatar">{contact.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}</div><div><h3>{contact.name} {contact.primary && <Badge variant="secondary">Основной контакт</Badge>}</h3><p>{contact.role}{contact.manager ? ` · Кто создал: ${contact.manager}` : ""}</p><div className="contact-detail-row">{getContactChannels(contact).map((channel, index) => <ContactChannelAction key={`${channel.kind}-${channel.provider ?? ""}-${channel.value}-${index}`} channel={channel} />)}</div></div></div><div className="contact-item-actions"><Button size="sm" variant="outline" onClick={() => setEditing(contact)}>Изменить</Button></div></article>) : <div className="contacts-empty"><Users /><p>Конта��ты не добавлены</p><Button onClick={() => setAdding(true)}><Plus data-icon="inline-start" /> Добавить контакт</Button></div>}</div></>}</section></div>, document.body)
 }
 
-function AddressModal({ address, onClose }: { address?: Lead["address"]; onClose: () => void }) {
+function formatObjectAddress(address?: Lead["address"]) {
+  return [address?.city, address?.street, address?.building, address?.additional].filter((part): part is string => Boolean(part?.trim())).join(", ")
+}
+
+function AddressModal({ objectName, address, onClose, onSave }: { objectName: string; address?: Lead["address"]; onClose: () => void; onSave: (address: string) => Promise<Lead["address"]> }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(formatObjectAddress(address))
+  const [pending, setPending] = useState(false)
+  const fullAddress = formatObjectAddress(address)
   useEffect(() => { const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose(); document.addEventListener("keydown", onKey); const previousOverflow = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = previousOverflow } }, [onClose])
-  return typeof document === "undefined" ? null : createPortal(<div className="contacts-overlay" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="contacts-modal address-modal" role="dialog" aria-modal="true" aria-labelledby="address-title" onMouseDown={(event) => event.stopPropagation()}><header className="contacts-modal-header"><div><p className="section-label">Локация</p><h2 id="address-title">Адрес компании</h2></div><button className="modal-close" aria-label="Закрыть адрес" title="Закрыть" onClick={onClose}><X /></button></header><div className="address-modal-content">{address && Object.values(address).some(Boolean) ? <><MapPin /><dl className="address-details">{address.city && <div><dt>Город</dt><dd>{address.city}</dd></div>}{address.street && <div><dt>Улица</dt><dd>{address.street}</dd></div>}{address.building && <div><dt>Дом / корпус</dt><dd>{address.building}</dd></div>}{address.additional && <div><dt>Дополнительно</dt><dd>{address.additional}</dd></div>}</dl></> : <p>Адресные данные не указаны</p>}</div></section></div>, document.body)
+  const save = async () => {
+    const cleaned = draft.trim()
+    if (!cleaned) { toast.error("Укажите адрес объекта"); return }
+    setPending(true)
+    try { await onSave(cleaned); setEditing(false) } catch (error) { toast.error(error instanceof Error ? error.message : "Не удалось сохранить адрес") } finally { setPending(false) }
+  }
+  return typeof document === "undefined" ? null : createPortal(<div className="contacts-overlay" role="presentation" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="contacts-modal address-modal" role="dialog" aria-modal="true" aria-labelledby="address-title" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}><header className="contacts-modal-header"><div><p className="section-label">Локация</p><h2 id="address-title">Адрес объекта</h2></div><button className="modal-close" aria-label="Закрыть адрес" title="Закрыть" onClick={onClose}><X /></button></header><div className="address-modal-content"><div><strong>Объект:</strong><p>{objectName || "Название объекта не указано"}</p></div><div><strong>Адрес:</strong><p>{fullAddress || "Адрес объекта не указан"}</p></div>{editing ? <div className="address-edit-form"><label htmlFor="object-address-input">Адрес объекта</label><Input id="object-address-input" autoFocus maxLength={200} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void save() }} /><div className="address-modal-actions"><Button variant="outline" type="button" onClick={() => { setDraft(fullAddress); setEditing(false) }}>Отмена</Button><Button type="button" disabled={pending || !draft.trim()} onClick={() => void save()}>{pending ? "Сохраняем…" : "Сохранить"}</Button></div></div> : <div className="address-modal-actions"><Button type="button" disabled={!fullAddress} onClick={() => window.open(`https://yandex.ru/maps/?text=${encodeURIComponent(fullAddress)}`, "_blank", "noopener,noreferrer")}>Открыть в Яндекс.Картах</Button><Button type="button" variant="outline" onClick={() => { setDraft(fullAddress); setEditing(true) }}>Изменить адрес</Button></div>}</div></section></div>, document.body)
 }
 
 function CompanyPhonesMenu({ phones, onClose, onSave }: { phones: string[]; onClose: () => void; onSave: (phones: string[]) => Promise<void> }) {
@@ -244,7 +258,15 @@ export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isD
   const [companyPhones, setCompanyPhones] = useState<string[]>(() => normalizeContactValues(lead.companyPhones))
   const [companyEmails, setCompanyEmails] = useState<string[]>(() => normalizeContactValues(lead.emails))
   const [addressOpen, setAddressOpen] = useState(false)
+  const [currentAddress, setCurrentAddress] = useState(lead.address)
   const [contactsOpen, setContactsOpen] = useState(false)
+  const openAddress = (event: ReactMouseEvent<HTMLButtonElement>) => { event.stopPropagation(); setAddressOpen(true) }
+  const saveObjectAddress = async (value: string) => {
+    const updated = await updateLeadFields(lead.id, { address: { city: "", street: value, building: "", additional: "" } })
+    setCurrentAddress(updated.address)
+    toast.success("Адрес объекта сохранён")
+    return updated.address
+  }
   const [localContacts, setContacts] = useState<ContactRecord[]>(() => lead.contact ? [{ id: 0, name: lead.contact, role: lead.role, phone: lead.phone, email: lead.email ?? "", primary: true, manager: lead.owner }] : [])
   const localIds = new Set(localContacts.map((contact) => contact.id))
   const storedContacts: ContactRecord[] = savedContacts
@@ -295,11 +317,12 @@ export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isD
     company: <div className="lead-company-row"><h3>{lead.company}</h3></div>,
     duration: <span className={cn("lead-stage-duration", lead.days >= 14 && "is-long")}>{lead.days} дн в стад��и</span>,
     service: <p className="lead-service"><Building2 />{lead.request}</p>,
-    object: <div className="lead-object-line"><button className="lead-address-icon" type="button" title="Показать адрес" aria-label={`Показать адрес: ${lead.address?.city || "Адрес не указан"}`} onClick={(event) => { event.stopPropagation(); setAddressOpen(true) }}><MapPin /></button><span className="lead-object-name">{lead.objectName || "Название объекта не указано"}</span></div>,
+    object: <div className="lead-object-line"><button className="lead-address-icon" type="button" title="Показать адрес объекта" aria-label={`Показать адрес: ${lead.objectName || "Название объекта не указано"}`} onClick={openAddress}><MapPin /></button><button className="lead-object-name" type="button" onClick={openAddress}>{lead.objectName || "Название объекта не указано"}</button></div>,
     financials: <div className="lead-financials" onClick={(event) => event.stopPropagation()}><strong>{formatRubles(lead.value)}</strong><Select value={quoteStatus} onValueChange={setQuoteStatus}><SelectTrigger aria-label="Статус КП"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="КП озвучено">КП озвучено</SelectItem><SelectItem value="КП отправлено">КП отправлено</SelectItem></SelectContent></Select></div>,
     owner: <div className="lead-owner"><span className="lead-owner-label">Ответственный</span><span className="lead-owner-name" title={lead.owner}>{lead.owner}</span></div>,
   }
-  const visibleInfoOrder = activeConfig.order.filter((id) => !hidden.has(id))
+  const visibleInfoOrder: LeadCardElementId[] = activeConfig.order.filter((id) => id === "object" || !hidden.has(id))
+  if (!visibleInfoOrder.includes("object")) visibleInfoOrder.push("object")
   const visibleTitleOrder = visibleInfoOrder.filter((id) => id === "company" || id === "object")
   const titleStyles: Partial<Record<LeadCardElementId, LeadCardTitleStyle>> = {}
   visibleTitleOrder.forEach((id, index) => { titleStyles[id] = getLeadCardTitleStyle(index) })
@@ -334,7 +357,7 @@ export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isD
         {!quickActionsInOwnerRow && <div className="lead-card-actions-footer"><LeadQuickActions leadId={lead.id} onAction={(type) => onQuickAction?.(type, lead)} /></div>}
       </div>
       {companyModal && <CompanyDataModal kind={companyModal} values={companyModal === "phone" ? phoneValues : emailValues} companyName={lead.company} createdBy={lead.owner} onClose={() => setCompanyModal(null)} onSave={companyModal === "phone" ? saveCompanyPhones : saveCompanyEmails} />}
-      {addressOpen && <AddressModal address={lead.address} onClose={() => setAddressOpen(false)} />}
+      {addressOpen && <AddressModal objectName={lead.objectName ?? ""} address={currentAddress} onClose={() => setAddressOpen(false)} onSave={saveObjectAddress} />}
       {contactsOpen && <ContactsModal contacts={contacts} companyName={lead.company} createdBy={lead.owner} onClose={() => setContactsOpen(false)} onSave={saveContact} />}
     </div>
   )
