@@ -1,5 +1,6 @@
 import type { Lead } from "@/components/lead-card"
 import type { SavedContact } from "@/app/actions/lead-records"
+import type { ContactMethod } from "@/lib/db/schema"
 
 export type RegistryContact = {
   id: string
@@ -7,6 +8,10 @@ export type RegistryContact = {
   role: string
   phones: string[]
   emails: string[]
+  telegram?: string
+  contactMethods?: ContactMethod[]
+  leadId?: string
+  savedContactId?: number
   comment?: string
   isPrimary: boolean
   createdAt?: string
@@ -139,8 +144,12 @@ export function buildCompanyViewModels(
           id: `lead-contact-${lead.id}`,
           name: lead.contact,
           role: lead.role || matchedSaved?.role || "",
-          phones: lead.phone ? [lead.phone] : [],
+          phones: [...new Set([lead.phone, matchedSaved?.phone].filter((value): value is string => Boolean(value)))],
           emails: matchedSaved?.email ? [matchedSaved.email] : [],
+          telegram: matchedSaved?.telegram,
+          contactMethods: matchedSaved?.contactMethods ?? [],
+          leadId: lead.id,
+          savedContactId: matchedSaved?.id,
           comment: matchedSaved?.comment || undefined,
           isPrimary: false,
         })
@@ -157,6 +166,10 @@ export function buildCompanyViewModels(
     if (existing) {
       if (contact.phone && !existing.phones.includes(contact.phone)) existing.phones.push(contact.phone)
       if (contact.email && !existing.emails.includes(contact.email)) existing.emails.push(contact.email)
+      existing.telegram ||= contact.telegram
+      existing.contactMethods = [...(existing.contactMethods ?? []), ...contact.contactMethods.filter((method) => !existing.contactMethods?.some((item) => item.id === method.id))]
+      existing.leadId = contact.leadId
+      existing.savedContactId = contact.id
       existing.role ||= contact.role
       existing.comment ||= contact.comment || undefined
     } else {
@@ -166,6 +179,10 @@ export function buildCompanyViewModels(
         role: contact.role,
         phones: contact.phone ? [contact.phone] : [],
         emails: contact.email ? [contact.email] : [],
+        telegram: contact.telegram,
+        contactMethods: contact.contactMethods,
+        leadId: contact.leadId,
+        savedContactId: contact.id,
         comment: contact.comment || undefined,
         isPrimary: false,
       })
