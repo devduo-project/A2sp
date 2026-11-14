@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { tokarev } from "@/lib/employees"
 import { LeadQuickActions, type QuickActionType } from "@/components/lead-quick-actions"
-import type { SavedContact } from "@/app/actions/lead-records"
+import { createLeadContact, updateLeadContact, type SavedContact } from "@/app/actions/lead-records"
 import type { ContactMethod } from "@/lib/db/schema"
 import { updateLeadFields } from "@/app/actions/leads"
 import { defaultLeadCardConfig, getLeadCardTitleStyle, type LeadCardConfig, type LeadCardElementId, type LeadCardTitleStyle } from "@/lib/lead-card-config"
@@ -163,12 +163,12 @@ function ContactEmailAction({ email, iconOnly = false }: { email: string; iconOn
   return <span className="contact-email-action"><button type="button" className={iconOnly ? "contact-email-icon-trigger" : "contact-email-trigger"} aria-label={`Написать на ${email}`} aria-expanded={open} onClick={() => setOpen((current) => !current)}>{iconOnly ? <Mail aria-hidden="true" /> : <><Mail aria-hidden="true" />{email}</>}</button>{open && <span className="contact-email-menu" role="group" aria-label="Выберите почтовое приложение"><button type="button" onClick={() => compose("mailto")}>Mail</button><button type="button" onClick={() => compose("yandex")}>Яндекс Почта</button><button type="button" onClick={() => compose("gmail")}>Gmail</button></span>}</span>
 }
 
-function ContactsModal({ contacts, companyName, onClose, onSave }: { contacts: ContactRecord[]; companyName: string; onClose: () => void; onSave: (contact: ContactRecord) => void }) {
+function ContactsModal({ contacts, companyName, onClose, onSave }: { contacts: ContactRecord[]; companyName: string; onClose: () => void; onSave: (contact: ContactRecord) => Promise<void> }) {
   const [editing, setEditing] = useState<ContactRecord | undefined>()
   const [adding, setAdding] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
   useEffect(() => { const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose(); document.addEventListener("keydown", onKey); dialogRef.current?.focus(); const previousOverflow = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = previousOverflow } }, [onClose])
-  const save = (contact: ContactRecord) => { onSave(contact); setAdding(false); setEditing(undefined); toast.success("Контакт сохранён") }
+  const save = async (contact: ContactRecord) => { try { await onSave(contact); setAdding(false); setEditing(undefined); toast.success("Контакт сохранён") } catch (error) { toast.error(error instanceof Error ? error.message : "Не удалось сохранить контакт") } }
   return typeof document === "undefined" ? null : createPortal(<div className="contacts-overlay" role="presentation" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="contacts-modal" onClick={(event) => event.stopPropagation()} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="contacts-title" onMouseDown={(event) => event.stopPropagation()}><header className="contacts-modal-header"><div><h2 id="contacts-title">Контакты компании</h2><p className="contacts-company-name">{companyName}</p></div><button className="modal-close" aria-label="Закрыть контакты" title="Закрыть" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose() }}><X /></button></header>{adding || editing ? <><ContactForm contact={editing} onSave={save} onCancel={() => { setAdding(false); setEditing(undefined) }} /></> : <><div className="contacts-modal-toolbar"><span>{contacts.length ? `Контакты · ${contacts.length}` : "Контакты не добавлены"}</span><Button size="sm" onClick={() => setAdding(true)}><Plus data-icon="inline-start" /> Добавить контакт</Button></div><div className="contact-list">{contacts.length ? contacts.map((contact) => <article className="contact-list-item" key={contact.id}><div className="contact-list-main"><div className="contact-avatar">{contact.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}</div><div><h3>{contact.name} {contact.primary && <Badge variant="secondary">Основной контакт</Badge>}</h3><p>{contact.role}{contact.manager ? ` · Ответственный: ${contact.manager}` : ""}</p><div className="contact-detail-row">{contact.phone && <a href={`tel:${contact.phone.replace(/\s/g, "")}`}><Phone />{contact.phone}</a>}{contact.email && <ContactEmailAction email={contact.email} />}{contact.telegram && <a href={contact.telegram.startsWith("http") ? contact.telegram : `https://t.me/${contact.telegram.replace(/^@/, "")}`} target="_blank" rel="noreferrer">Telegram: {contact.telegram}</a>}{(contact.contactMethods ?? []).map((method) => <span key={method.id}>{method.kind === "messenger" ? `${method.provider || "Мессенджер"}: ` : method.kind === "phone" ? "Телефон: " : "Email: "}{method.value}</span>)}</div></div></div><div className="contact-item-actions"><Button size="icon" variant="ghost" title="Позвонить" aria-label="Позвонить" disabled={!contact.phone} asChild><a href={`tel:${contact.phone.replace(/\s/g, "")}`}><Phone /></a></Button>{contact.email ? <ContactEmailAction email={contact.email} iconOnly /> : <Button size="icon" variant="ghost" title="Написать" aria-label="Написать" disabled><Mail /></Button>}<Button size="sm" variant="outline" onClick={() => setEditing(contact)}>Изменить</Button></div></article>) : <div className="contacts-empty"><Users /><p>Конта��ты не добавлены</p><Button onClick={() => setAdding(true)}><Plus data-icon="inline-start" /> Добавить контакт</Button></div>}</div></>}</section></div>, document.body)
 }
 
@@ -246,7 +246,18 @@ export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isD
       throw error
     }
   }
-  const saveContact = (contact: ContactRecord) => setContacts((current) => { const normalized = contact.primary ? current.map((item) => ({ ...item, primary: false })) : current; const exists = normalized.some((item) => item.id === contact.id); return exists ? normalized.map((item) => item.id === contact.id ? contact : item) : [...normalized, contact] })
+  const saveContact = async (contact: ContactRecord) => {
+    const [firstName, ...lastNameParts] = contact.name.trim().split(/\s+/)
+    const input = { leadId: lead.id, firstName, lastName: lastNameParts.join(" "), role: contact.role, phone: contact.phone, email: contact.email, telegram: contact.telegram ?? "", contactMethods: contact.contactMethods ?? [], comment: "" }
+    const saved = contact.id >= SAVED_CONTACT_ID_OFFSET
+      ? await updateLeadContact(contact.id - SAVED_CONTACT_ID_OFFSET, input)
+      : await createLeadContact(input)
+    const persisted: ContactRecord = { ...contact, id: SAVED_CONTACT_ID_OFFSET + saved.id, name: saved.name, telegram: saved.telegram, contactMethods: saved.contactMethods }
+    setContacts((current) => {
+      const normalized = contact.primary ? current.map((item) => ({ ...item, primary: false })) : current
+      return [...normalized.filter((item) => item.id !== contact.id && item.id !== persisted.id), persisted]
+    })
+  }
   const activeConfig = cardConfig ?? defaultLeadCardConfig
   const hidden = new Set(activeConfig.hidden)
   const content: Record<LeadCardElementId, React.ReactNode> = {
