@@ -14,7 +14,7 @@ import { tokarev } from "@/lib/employees"
 import { LeadQuickActions, type QuickActionType } from "@/components/lead-quick-actions"
 import type { SavedContact } from "@/app/actions/lead-records"
 import { updateLeadFields } from "@/app/actions/leads"
-import { defaultLeadCardConfig, getLeadCardPositionStyle, type LeadCardConfig, type LeadCardElementId } from "@/lib/lead-card-config"
+import { defaultLeadCardConfig, getLeadCardTitleStyle, type LeadCardConfig, type LeadCardElementId, type LeadCardTitleStyle } from "@/lib/lead-card-config"
 
 const SAVED_CONTACT_ID_OFFSET = 1_000_000_000
 
@@ -134,18 +134,45 @@ export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isD
     service: <p className="lead-service"><Building2 />{lead.request}</p>,
     object: <div className="lead-object-line"><button className="lead-address-icon" type="button" title="Показать адрес" aria-label={`Показать адрес: ${lead.address?.city || "Адрес не указан"}`} onClick={(event) => { event.stopPropagation(); setAddressOpen(true) }}><MapPin /></button><span className="lead-object-name">{lead.objectName || "Название объекта не указано"}</span></div>,
     financials: <div className="lead-financials" onClick={(event) => event.stopPropagation()}><strong>{formatRubles(lead.value)}</strong><Select value={quoteStatus} onValueChange={setQuoteStatus}><SelectTrigger aria-label="Статус КП"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="КП озвучено">КП озвучено</SelectItem><SelectItem value="КП отправлено">КП отправлено</SelectItem></SelectContent></Select></div>,
-    owner: null,
+    owner: <div className="lead-owner"><span className="lead-owner-label">Ответственный</span><span className="lead-owner-name" title={lead.owner}>{lead.owner}</span></div>,
   }
-  const visibleInfoOrder = activeConfig.order.filter((id) => !hidden.has(id) && id !== "owner")
-  const ownerPositionStyle = getLeadCardPositionStyle(visibleInfoOrder.length)
+  const visibleInfoOrder = activeConfig.order.filter((id) => !hidden.has(id))
+  const visibleTitleOrder = visibleInfoOrder.filter((id) => id === "company" || id === "object")
+  const titleStyles: Partial<Record<LeadCardElementId, LeadCardTitleStyle>> = {}
+  visibleTitleOrder.forEach((id, index) => { titleStyles[id] = getLeadCardTitleStyle(index) })
+  const headingId = visibleTitleOrder[0]
+  const headingIndex = headingId ? visibleInfoOrder.indexOf(headingId) : -1
+  const quickActionsInOwnerRow = visibleInfoOrder[visibleInfoOrder.length - 1] === "owner"
   const renderContent = (id: LeadCardElementId, index: number) => {
     const contentNode = content[id]
-    const positionClass = `lead-card-position-${getLeadCardPositionStyle(index)}`
-    if (id === "owner") return null
-    if (id === "company" || id === "object") {
-      return <div key={id} className={cn("lead-card-text-item", positionClass)}>{contentNode}</div>
+    if (id === "owner" && index === visibleInfoOrder.length - 1) {
+      return <div key={id} className="lead-owner-row">{contentNode}<LeadQuickActions leadId={lead.id} onAction={(type) => onQuickAction?.(type, lead)} /></div>
     }
-    return <div key={id} className={cn("lead-card-info-item", positionClass)}>{contentNode}</div>
+    if (id === "owner") return <div key={id} className="lead-card-info-item lead-card-owner-item">{contentNode}</div>
+    const titleStyle = titleStyles[id]
+    return <div key={id} className={cn("lead-card-info-item", titleStyle && "lead-card-title-item", titleStyle && `is-${titleStyle}`)}>{contentNode}</div>
   }
-  return <div className={cn("lead-card", isDragging && "is-dragging")} data-lead-id={lead.id} {...dragProps} ref={cardRef} role="button" tabIndex={0} onClick={onClick} onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick() } }}><div className="lead-card-header"><div className="lead-card-title" /><div className="lead-card-header-actions" onClick={(event) => event.stopPropagation()}><Button size="icon" variant="ghost" title="Телефоны компании" aria-label="Телефоны компании" onClick={() => setPhoneOpen((open) => !open)}><Phone /></Button><Button size="icon" variant="ghost" title={`Контакты �� ${contacts.length}`} aria-label={`Открыть контакты, ${contacts.length}`} onClick={() => { setPhoneOpen(false); setContactsOpen(true) }}><Users /></Button></div></div><div className="lead-card-info">{visibleInfoOrder.map((id, index) => renderContent(id, index))}</div><div className={cn("lead-owner-row", `lead-card-position-${ownerPositionStyle}`)}>{!hidden.has("owner") && <div className="lead-owner"><span className="lead-owner-label">Ответственный</span><span className="lead-owner-name" title={lead.owner}>{lead.owner}</span></div>}<LeadQuickActions leadId={lead.id} onAction={(type) => onQuickAction?.(type, lead)} /></div>{phoneOpen && <CompanyPhonesMenu phones={companyPhones} onClose={() => setPhoneOpen(false)} onSave={saveCompanyPhones} />}{addressOpen && <AddressModal address={lead.address} onClose={() => setAddressOpen(false)} />}{contactsOpen && <ContactsModal contacts={contacts} onClose={() => setContactsOpen(false)} onSave={saveContact} />}</div>
+  const renderItems = (ids: LeadCardElementId[]) => ids.map((id) => renderContent(id, visibleInfoOrder.indexOf(id)))
+  const contactActions = <div className="lead-card-header-actions" onClick={(event) => event.stopPropagation()}><Button className="lead-card-contact-phone" size="icon" variant="ghost" title="Телефоны компании" aria-label="Телефоны компании" onClick={() => setPhoneOpen((open) => !open)}><Phone /></Button><Button className="lead-card-contact-contacts" size="icon" variant="ghost" title={`Контакты · ${contacts.length}`} aria-label={`Открыть контакты, ${contacts.length}`} onClick={() => { setPhoneOpen(false); setContactsOpen(true) }}><Users /></Button><span className="lead-card-email-slot" aria-hidden="true" /></div>
+  return (
+    <div className={cn("lead-card", isDragging && "is-dragging")} data-lead-id={lead.id} {...dragProps} ref={cardRef} role="button" tabIndex={0} onClick={onClick} onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick() } }}>
+      <div className="lead-card-info">
+        {!headingId ? <>
+          <div className="lead-card-heading-row is-actions-only">{contactActions}</div>
+          {renderItems(visibleInfoOrder)}
+        </> : <>
+          {renderItems(visibleInfoOrder.slice(0, headingIndex))}
+          <div className="lead-card-heading-row">
+            <div className="lead-card-heading-text">{renderContent(headingId, headingIndex)}</div>
+            {contactActions}
+          </div>
+          {renderItems(visibleInfoOrder.slice(headingIndex + 1))}
+        </>}
+        {!quickActionsInOwnerRow && <div className="lead-card-actions-footer"><LeadQuickActions leadId={lead.id} onAction={(type) => onQuickAction?.(type, lead)} /></div>}
+      </div>
+      {phoneOpen && <CompanyPhonesMenu phones={companyPhones} onClose={() => setPhoneOpen(false)} onSave={saveCompanyPhones} />}
+      {addressOpen && <AddressModal address={lead.address} onClose={() => setAddressOpen(false)} />}
+      {contactsOpen && <ContactsModal contacts={contacts} onClose={() => setContactsOpen(false)} onSave={saveContact} />}
+    </div>
+  )
 }
