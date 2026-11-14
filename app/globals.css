@@ -311,3 +311,5 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 .lead-pipeline[aria-busy="true"] .lead-pipeline-step { cursor: progress; }
 .deals-placeholder { width: 100%; min-height: 60vh; flex: none; justify-content: center; align-items: center; border: 1px dashed var(--border); border-radius: 16px; background: oklch(1 0 0 / 0.35); }
 .deals-placeholder [data-slot="empty-title"] { font-size: 20px; font-weight: 700; color: var(--foreground); }
+
+.crm-shell:not(.list-view) .pipeline .column-cards { margin-top: 18px; }
