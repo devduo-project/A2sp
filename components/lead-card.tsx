@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Building2, Copy, Mail, MapPin, Phone, Plus, Users, X } from "lucide-react"
+import { Building2, Copy, Mail, MapPin, Phone, Plus, Trash2, Users, X } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { tokarev } from "@/lib/employees"
 import { LeadQuickActions, type QuickActionType } from "@/components/lead-quick-actions"
 import type { SavedContact } from "@/app/actions/lead-records"
+import type { ContactMethod } from "@/lib/db/schema"
 import { updateLeadFields } from "@/app/actions/leads"
 import { defaultLeadCardConfig, getLeadCardTitleStyle, type LeadCardConfig, type LeadCardElementId, type LeadCardTitleStyle } from "@/lib/lead-card-config"
 
@@ -47,7 +48,7 @@ export type Lead = {
   emails?: string[]
 }
 
-type ContactRecord = { id: number; name: string; role: string; phone: string; email: string; primary?: boolean; manager?: string }
+type ContactRecord = { id: number; name: string; role: string; phone: string; email: string; telegram?: string; contactMethods?: ContactMethod[]; primary?: boolean; manager?: string }
 type LeadCardProps = {
   lead: Lead
   onClick: () => void
@@ -106,9 +107,45 @@ function formatRubles(value: string) {
 }
 
 function ContactForm({ contact, onSave, onCancel }: { contact?: ContactRecord; onSave: (contact: ContactRecord) => void; onCancel: () => void }) {
-  const [form, setForm] = useState(contact ?? { id: Date.now(), name: "", role: "", phone: "", email: "", primary: false, manager: "" })
+  const [form, setForm] = useState(contact ?? { id: Date.now(), name: "", role: "", phone: "", email: "", telegram: "", primary: false, manager: "" })
+  const [methods, setMethods] = useState<ContactMethod[]>(contact?.contactMethods ?? [])
+  const [addingType, setAddingType] = useState(false)
   const update = (key: keyof ContactRecord, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }))
-  return <div className="contact-form"><label>ФИО сотрудника<Input value={form.name} onChange={(e) => update("name", e.target.value)} autoFocus /></label><label>Должность<Input value={form.role} onChange={(e) => update("role", e.target.value)} /></label><label>Телефон<Input value={form.phone} onChange={(e) => update("phone", e.target.value)} /></label><label>Email<Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} /></label><label className="contact-checkbox"><input type="checkbox" checked={Boolean(form.primary)} onChange={(e) => update("primary", e.target.checked)} /> Основной контакт</label><div className="modal-actions"><Button variant="outline" onClick={onCancel}>Отмена</Button><Button disabled={!form.name.trim()} onClick={() => onSave(form)}>Сохранить</Button></div></div>
+  const addMethod = (kind: ContactMethod["kind"]) => {
+    setMethods((current) => [...current, { id: crypto.randomUUID(), kind, provider: kind === "messenger" ? "Telegram" : undefined, value: "" }])
+    setAddingType(false)
+  }
+  const updateMethod = (id: string, patch: Partial<ContactMethod>) => setMethods((current) => current.map((method) => method.id === id ? { ...method, ...patch } : method))
+  const save = () => {
+    const telegram = form.telegram?.trim() ?? ""
+    if (telegram && !(/^(?:@[A-Za-z0-9_]{5,32}|https:\/\/t\.me\/[A-Za-z0-9_]{5,32}\/?$)/i.test(telegram))) {
+      toast.error("Укажите Telegram как @username или https://t.me/username")
+      return
+    }
+    const cleanMethods = methods.filter((method) => method.value.trim()).map((method) => ({ ...method, value: method.value.trim() }))
+    onSave({ ...form, telegram, contactMethods: cleanMethods })
+  }
+  return <div className="contact-form">
+    <label>ФИО сотрудника<Input value={form.name} onChange={(e) => update("name", e.target.value)} autoFocus /></label>
+    <label>Должность<Input value={form.role} onChange={(e) => update("role", e.target.value)} /></label>
+    <label>Телефон<Input type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} /></label>
+    <label>Email<Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} /></label>
+    <label>Telegram<Input value={form.telegram ?? ""} onChange={(e) => update("telegram", e.target.value)} placeholder="@username или https://t.me/username" /></label>
+    <section className="lead-contact-methods" aria-label="Дополнительные способы связи">
+      <div className="lead-contact-methods-heading"><strong>Дополнительные способы связи</strong><Button type="button" size="sm" variant="outline" aria-expanded={addingType} onClick={() => setAddingType((current) => !current)}><Plus data-icon="inline-start" /> Добавить способ связи</Button></div>
+      {addingType && <div className="lead-contact-method-picker" role="group" aria-label="Выберите тип связи"><Button type="button" size="sm" variant="ghost" onClick={() => addMethod("messenger")}>Мессенджер</Button><Button type="button" size="sm" variant="ghost" onClick={() => addMethod("phone")}>Телефон</Button><Button type="button" size="sm" variant="ghost" onClick={() => addMethod("email")}>Email</Button></div>}
+      {methods.map((method) => <div className="lead-contact-method-row" key={method.id}>
+        <div className="lead-contact-method-fields">
+          <label>Тип<select aria-label="Тип способа связи" value={method.kind} onChange={(event) => updateMethod(method.id, { kind: event.target.value as ContactMethod["kind"], provider: event.target.value === "messenger" ? "Telegram" : undefined })}><option value="messenger">Мессенджер</option><option value="phone">Телефон</option><option value="email">Email</option></select></label>
+          {method.kind === "messenger" && <label>Платформа<select aria-label="Платформа мессенджера" value={method.provider ?? "Telegram"} onChange={(event) => updateMethod(method.id, { provider: event.target.value })}><option>Telegram</option><option>WhatsApp</option><option>MAX</option><option>Viber</option><option>Skype</option><option>Другое</option></select></label>}
+          <label>{method.kind === "messenger" ? "Username, номер или ссылка" : method.kind === "phone" ? "Номер телефона" : "Email"}<Input aria-label={method.kind === "messenger" ? "Username, номер или ссылка" : method.kind === "phone" ? "Номер дополнительного телефона" : "Дополнительный email"} type={method.kind === "phone" ? "tel" : method.kind === "email" ? "email" : "text"} value={method.value} onChange={(event) => updateMethod(method.id, { value: event.target.value })} placeholder={method.kind === "phone" ? "+7 ..." : method.kind === "email" ? "name@example.com" : "@username или ссылка"} /></label>
+        </div>
+        <Button type="button" size="icon" variant="ghost" aria-label="Удалить способ связи" onClick={() => setMethods((current) => current.filter((item) => item.id !== method.id))}><Trash2 /></Button>
+      </div>)}
+    </section>
+    <label className="contact-checkbox"><input type="checkbox" checked={Boolean(form.primary)} onChange={(e) => update("primary", e.target.checked)} /> Основной контакт</label>
+    <div className="modal-actions"><Button type="button" variant="outline" onClick={onCancel}>Отмена</Button><Button type="button" disabled={!form.name.trim()} onClick={save}>Сохранить</Button></div>
+  </div>
 }
 
 function ContactEmailAction({ email, iconOnly = false }: { email: string; iconOnly?: boolean }) {
@@ -132,7 +169,7 @@ function ContactsModal({ contacts, companyName, onClose, onSave }: { contacts: C
   const dialogRef = useRef<HTMLDivElement>(null)
   useEffect(() => { const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose(); document.addEventListener("keydown", onKey); dialogRef.current?.focus(); const previousOverflow = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = previousOverflow } }, [onClose])
   const save = (contact: ContactRecord) => { onSave(contact); setAdding(false); setEditing(undefined); toast.success("Контакт сохранён") }
-  return typeof document === "undefined" ? null : createPortal(<div className="contacts-overlay" role="presentation" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="contacts-modal" onClick={(event) => event.stopPropagation()} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="contacts-title" onMouseDown={(event) => event.stopPropagation()}><header className="contacts-modal-header"><div><h2 id="contacts-title">Контакты компании</h2><p className="contacts-company-name">{companyName}</p></div><button className="modal-close" aria-label="Закрыть контакты" title="Закрыть" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose() }}><X /></button></header>{adding || editing ? <><ContactForm contact={editing} onSave={save} onCancel={() => { setAdding(false); setEditing(undefined) }} /></> : <><div className="contacts-modal-toolbar"><span>{contacts.length ? `Контакты · ${contacts.length}` : "Контакты не добавлены"}</span><Button size="sm" onClick={() => setAdding(true)}><Plus data-icon="inline-start" /> Добавить контакт</Button></div><div className="contact-list">{contacts.length ? contacts.map((contact) => <article className="contact-list-item" key={contact.id}><div className="contact-list-main"><div className="contact-avatar">{contact.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}</div><div><h3>{contact.name} {contact.primary && <Badge variant="secondary">Основной контакт</Badge>}</h3><p>{contact.role}{contact.manager ? ` · Ответственный: ${contact.manager}` : ""}</p><div className="contact-detail-row">{contact.phone && <a href={`tel:${contact.phone.replace(/\s/g, "")}`}><Phone />{contact.phone}</a>}{contact.email && <ContactEmailAction email={contact.email} />}</div></div></div><div className="contact-item-actions"><Button size="icon" variant="ghost" title="Позвонить" aria-label="Позвонить" disabled={!contact.phone} asChild><a href={`tel:${contact.phone.replace(/\s/g, "")}`}><Phone /></a></Button>{contact.email ? <ContactEmailAction email={contact.email} iconOnly /> : <Button size="icon" variant="ghost" title="Написать" aria-label="Написать" disabled><Mail /></Button>}<Button size="sm" variant="outline" onClick={() => setEditing(contact)}>Изменить</Button></div></article>) : <div className="contacts-empty"><Users /><p>Конта��ты не добавлены</p><Button onClick={() => setAdding(true)}><Plus data-icon="inline-start" /> Добавить контакт</Button></div>}</div></>}</section></div>, document.body)
+  return typeof document === "undefined" ? null : createPortal(<div className="contacts-overlay" role="presentation" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="contacts-modal" onClick={(event) => event.stopPropagation()} ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="contacts-title" onMouseDown={(event) => event.stopPropagation()}><header className="contacts-modal-header"><div><h2 id="contacts-title">Контакты компании</h2><p className="contacts-company-name">{companyName}</p></div><button className="modal-close" aria-label="Закрыть контакты" title="Закрыть" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClose() }}><X /></button></header>{adding || editing ? <><ContactForm contact={editing} onSave={save} onCancel={() => { setAdding(false); setEditing(undefined) }} /></> : <><div className="contacts-modal-toolbar"><span>{contacts.length ? `Контакты · ${contacts.length}` : "Контакты не добавлены"}</span><Button size="sm" onClick={() => setAdding(true)}><Plus data-icon="inline-start" /> Добавить контакт</Button></div><div className="contact-list">{contacts.length ? contacts.map((contact) => <article className="contact-list-item" key={contact.id}><div className="contact-list-main"><div className="contact-avatar">{contact.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}</div><div><h3>{contact.name} {contact.primary && <Badge variant="secondary">Основной контакт</Badge>}</h3><p>{contact.role}{contact.manager ? ` · Ответственный: ${contact.manager}` : ""}</p><div className="contact-detail-row">{contact.phone && <a href={`tel:${contact.phone.replace(/\s/g, "")}`}><Phone />{contact.phone}</a>}{contact.email && <ContactEmailAction email={contact.email} />}{contact.telegram && <a href={contact.telegram.startsWith("http") ? contact.telegram : `https://t.me/${contact.telegram.replace(/^@/, "")}`} target="_blank" rel="noreferrer">Telegram: {contact.telegram}</a>}{(contact.contactMethods ?? []).map((method) => <span key={method.id}>{method.kind === "messenger" ? `${method.provider || "Мессенджер"}: ` : method.kind === "phone" ? "Телефон: " : "Email: "}{method.value}</span>)}</div></div></div><div className="contact-item-actions"><Button size="icon" variant="ghost" title="Позвонить" aria-label="Позвонить" disabled={!contact.phone} asChild><a href={`tel:${contact.phone.replace(/\s/g, "")}`}><Phone /></a></Button>{contact.email ? <ContactEmailAction email={contact.email} iconOnly /> : <Button size="icon" variant="ghost" title="Написать" aria-label="Написать" disabled><Mail /></Button>}<Button size="sm" variant="outline" onClick={() => setEditing(contact)}>Изменить</Button></div></article>) : <div className="contacts-empty"><Users /><p>Конта��ты не добавлены</p><Button onClick={() => setAdding(true)}><Plus data-icon="inline-start" /> Добавить контакт</Button></div>}</div></>}</section></div>, document.body)
 }
 
 function AddressModal({ address, onClose }: { address?: Lead["address"]; onClose: () => void }) {
@@ -182,7 +219,7 @@ export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isD
   const localIds = new Set(localContacts.map((contact) => contact.id))
   const storedContacts: ContactRecord[] = savedContacts
     .filter((contact) => contact.leadId === lead.id)
-    .map((contact) => ({ id: SAVED_CONTACT_ID_OFFSET + contact.id, name: contact.name, role: contact.role, phone: contact.phone, email: contact.email }))
+    .map((contact) => ({ id: SAVED_CONTACT_ID_OFFSET + contact.id, name: contact.name, role: contact.role, phone: contact.phone, email: contact.email, telegram: contact.telegram, contactMethods: contact.contactMethods }))
     .filter((contact) => !localIds.has(contact.id) && !localContacts.some((item) => item.name === contact.name && item.phone === contact.phone))
   const contacts = [...localContacts, ...storedContacts]
   const phoneValues = normalizeContactValues(companyPhones, lead.companyPhones)
