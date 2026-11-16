@@ -126,7 +126,12 @@ export function LeadFilterBar({ options, value, onChange, trailingControl }: Lea
   return (
     <div className="filter-bar">
       <div className="filter-groups">
-        {filterDefinitions.map(definition => <FilterDropdown key={definition.key} definition={definition} options={options} value={value} onChange={onChange} />)}
+        {filterDefinitions.map(definition => (
+          <Fragment key={definition.key}>
+            <FilterDropdown definition={definition} options={options} value={value} onChange={onChange} />
+            {definition.key === "stage" && trailingControl}
+          </Fragment>
+        ))}
         {active > 0 && (
           <button type="button" className="filter-reset" onClick={() => onChange(emptyLeadFilters)}>
             <RotateCcw aria-hidden="true" />
