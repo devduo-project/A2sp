@@ -107,7 +107,7 @@ function formatRubles(value: string) {
 }
 
 function ContactForm({ contact, onSave, onCancel }: { contact?: ContactRecord; onSave: (contact: ContactRecord) => void; onCancel: () => void }) {
-  const [form, setForm] = useState(contact ?? { id: Date.now(), name: "", role: "", phone: "", email: "", telegram: "", primary: false, manager: "" })
+  const [form, setForm] = useState(contact ?? { id: -Date.now(), name: "", role: "", phone: "", email: "", telegram: "", primary: false, manager: "" })
   const [methods, setMethods] = useState<ContactMethod[]>(contact?.contactMethods ?? [])
   const [addingType, setAddingType] = useState(false)
   const update = (key: keyof ContactRecord, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }))
