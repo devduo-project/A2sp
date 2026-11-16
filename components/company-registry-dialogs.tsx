@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { Building2, Mail, Phone, Plus, Trash2, UserRound } from "lucide-react"
+import { Building2, ExternalLink, Mail, Phone, Plus, Trash2, UserRound } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import type { Lead } from "@/components/lead-card"
 import type { CompanyViewModel, RegistryContact, RegistryRecord } from "@/lib/company-registry-data"
 import { createLeadContact, updateLeadContact, type SavedContact } from "@/app/actions/lead-records"
 import type { ContactMethod } from "@/lib/db/schema"
@@ -305,14 +306,19 @@ export function CompanyDetailsDialog({
 
 export function ContactDetailsDialog({
   contact,
+  leads,
   open,
   onOpenChange,
+  onLeadSelect,
 }: {
   contact: (RegistryContact & { companyName: string }) | null
+  leads: Lead[]
   open: boolean
   onOpenChange: (open: boolean) => void
+  onLeadSelect: (leadId: string) => boolean
 }) {
   if (!contact) return null
+  const linkedLeads = contact.leadId ? leads.filter((lead) => lead.id === contact.leadId) : []
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="registry-detail-dialog">
@@ -322,6 +328,7 @@ export function ContactDetailsDialog({
           <DialogDescription>{contact.companyName}</DialogDescription>
         </DialogHeader>
         <div className="registry-detail-fields">
+          <div><span>Компания</span><strong>{contact.companyName}</strong></div>
           <div><span>Должность</span><strong>{contact.role || "—"}</strong></div>
           <div><span>Телефон</span><strong>{contact.phones.join(", ") || "—"}</strong></div>
           <div><span>Email</span><strong>{contact.emails.join(", ") || "—"}</strong></div>
@@ -329,6 +336,27 @@ export function ContactDetailsDialog({
           {(contact.contactMethods ?? []).filter((method) => method.id !== "__telegram__").map((method) => <div key={method.id}><span>{method.kind === "messenger" ? method.provider || "Мессенджер" : method.kind === "phone" ? "Дополнительный телефон" : "Дополнительный email"}</span><strong>{method.value}</strong></div>)}
           <div><span>Комментарий</span><strong>{contact.comment || "—"}</strong></div>
         </div>
+        <section className="registry-contact-relations" aria-labelledby="contact-relations-heading">
+          <h3 id="contact-relations-heading">Связи</h3>
+          <div className="registry-relation-group">
+            <h4>Карточки лидов</h4>
+            {linkedLeads.length ? linkedLeads.map((lead) => (
+              <article className="registry-relation-card" key={lead.id}>
+                <div className="registry-relation-copy">
+                  <strong>{lead.company || "Заказчик не указан"}</strong>
+                  <span>{lead.objectName || lead.request || "Объект не указан"}</span>
+                  <span>Стадия: {lead.stage}</span>
+                  {lead.direction && <span>Направление: {lead.direction}</span>}
+                </div>
+                <Button type="button" size="icon" variant="ghost" className="registry-relation-link" aria-label={`Открыть карточку лида ${lead.company}`} title="Открыть карточку лида" onClick={() => { if (onLeadSelect(lead.id)) onOpenChange(false) }}><ExternalLink /></Button>
+              </article>
+            )) : <p className="registry-relations-empty">Нет связанных лидов</p>}
+          </div>
+          <div className="registry-relation-group">
+            <h4>Карточки сделок</h4>
+            <p className="registry-relations-empty">Нет связанных сделок</p>
+          </div>
+        </section>
         <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Закрыть</Button></DialogFooter>
       </DialogContent>
     </Dialog>

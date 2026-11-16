@@ -2,12 +2,17 @@
 
 import { useMemo, useState } from "react"
 import { ChevronDown, ChevronUp, Mail, Phone, Search, UserRound } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import type { Lead } from "@/components/lead-card"
+import { leadStages } from "@/lib/lead-stages"
 import { cn } from "@/lib/utils"
 import { parseRegistryDate, type ContactViewModel } from "@/lib/company-registry-data"
 
 interface ContactsTableProps {
   contacts: ContactViewModel[]
+  leads: Lead[]
   onContactSelect: (contact: ContactViewModel) => void
   onCompanySelect: (companyId: string) => void
 }
@@ -27,17 +32,21 @@ function compareDate(direction: SortDirection, a?: string, b?: string) {
   return direction === "asc" ? left - right : right - left
 }
 
-export function ContactsTable({ contacts, onContactSelect, onCompanySelect }: ContactsTableProps) {
+export function ContactsTable({ contacts, leads, onContactSelect, onCompanySelect }: ContactsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" })
   const [search, setSearch] = useState("")
   const [primaryFilter, setPrimaryFilter] = useState("all")
+  const [selectedStages, setSelectedStages] = useState<string[]>([])
+  const leadById = useMemo(() => new Map(leads.map((lead) => [lead.id, lead])), [leads])
 
   const rows = useMemo(() => {
     const terms = search.toLocaleLowerCase("ru").trim().split(/\s+/).filter(Boolean)
     return contacts.filter((contact) => {
       const haystack = `${contact.name} ${contact.companyName} ${contact.role} ${contact.phones.join(" ")} ${contact.emails.join(" ")} ${contact.telegram ?? ""} ${(contact.contactMethods ?? []).map((method) => `${method.provider ?? ""} ${method.value}`).join(" ")}`.toLocaleLowerCase("ru")
+      const linkedLead = contact.leadId ? leadById.get(contact.leadId) : undefined
       return terms.every((term) => haystack.includes(term))
         && (primaryFilter === "all" || (primaryFilter === "primary" ? contact.isPrimary : !contact.isPrimary))
+        && (selectedStages.length === 0 || Boolean(linkedLead && selectedStages.includes(linkedLead.stage)))
     }).sort((a, b) => {
       if (sort.key === "createdAt") return compareDate(sort.direction, a.createdAt, b.createdAt)
       const left = sort.key === "name" ? a.name : sort.key === "company" ? a.companyName : sort.key === "role" ? a.role : sort.key === "phone" ? `${a.phones.join(" ")} ${(a.contactMethods ?? []).filter((method) => method.kind === "phone").map((method) => method.value).join(" ")}` : sort.key === "email" ? `${a.emails.join(" ")} ${(a.contactMethods ?? []).filter((method) => method.kind === "email").map((method) => method.value).join(" ")}` : sort.key === "messenger" ? `${a.telegram ?? ""} ${(a.contactMethods ?? []).filter((method) => method.kind === "messenger").map((method) => method.value).join(" ")}` : a.createdBy ?? ""
@@ -45,7 +54,7 @@ export function ContactsTable({ contacts, onContactSelect, onCompanySelect }: Co
       const result = left.localeCompare(right, "ru")
       return sort.direction === "asc" ? result : -result
     })
-  }, [contacts, primaryFilter, search, sort])
+  }, [contacts, leadById, primaryFilter, search, selectedStages, sort])
 
   const toggleSort = (key: SortKey) => setSort((current) => {
     if (current.key !== key) return { key, direction: key === "createdAt" ? "desc" : "asc" }
@@ -74,6 +83,27 @@ export function ContactsTable({ contacts, onContactSelect, onCompanySelect }: Co
           <select className="registry-filter-select" aria-label="Фильтр по роли контакта" value={primaryFilter} onChange={(event) => setPrimaryFilter(event.target.value)}>
             <option value="all">Все контакты</option><option value="primary">Основные контакты</option><option value="other">Остальные контакты</option>
           </select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" className="registry-stage-filter" aria-label={`Фильтр по стадиям лидов${selectedStages.length ? `: выбрано ${selectedStages.length}` : ""}`}>
+                Стадия{selectedStages.length > 0 ? ` · ${selectedStages.length}` : ""}<ChevronDown aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="registry-stage-popover">
+              <p className="registry-stage-description">Выберите стадии лидов, которым принадлежит контакт</p>
+              <div className="registry-stage-options" role="group" aria-label="Стадии лидов">
+                {leadStages.map((stage) => {
+                  const checked = selectedStages.includes(stage)
+                  return <label className="registry-stage-option" key={stage}>
+                    <Checkbox checked={checked} onCheckedChange={(next) => setSelectedStages((current) => next ? [...current, stage] : current.filter((item) => item !== stage))} />
+                    <span>{stage}</span>
+                  </label>
+                })}
+              </div>
+              <button type="button" className="registry-stage-clear" disabled={selectedStages.length === 0} onClick={() => setSelectedStages([])}>Очистить выбор</button>
+            </PopoverContent>
+          </Popover>
+          <span className="registry-contact-count" aria-live="polite">Контакты · {rows.length}</span>
         </div>
       </div>
       <div className="leads-table-shell registry-table-shell">
