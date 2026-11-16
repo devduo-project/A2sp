@@ -56,12 +56,13 @@ export function CompanyRegistry({
       ) : (
         <ContactsTable
           contacts={contacts}
+          leads={leads}
           onContactSelect={(contact) => setSelectedContactId(contact.id)}
           onCompanySelect={(companyId) => setSelectedCompanyId(companyId)}
         />
       )}
       <CompanyDetailsDialog company={selectedCompany} open={Boolean(selectedCompany)} onOpenChange={(open) => { if (!open) setSelectedCompanyId(null) }} />
-      <ContactDetailsDialog contact={selectedContact} open={Boolean(selectedContact)} onOpenChange={(open) => { if (!open) setSelectedContactId(null) }} />
+      <ContactDetailsDialog contact={selectedContact} leads={leads} onLeadSelect={onLeadSelect} open={Boolean(selectedContact)} onOpenChange={(open) => { if (!open) setSelectedContactId(null) }} />
     </>
   )
 }
