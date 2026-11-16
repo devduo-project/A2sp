@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { Fragment, useState, type ReactNode } from "react"
 import { Building2, Check, ChevronDown, Columns3, RotateCcw, Search, SearchX, UserRound, Wrench, X, type LucideIcon } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
@@ -138,7 +138,6 @@ export function LeadFilterBar({ options, value, onChange, trailingControl }: Lea
             Сбросить фильтры
           </button>
         )}
-        {trailingControl}
       </div>
       {active > 0 && (
         <ul className="filter-chips" aria-label="Выбранные фильтры">
