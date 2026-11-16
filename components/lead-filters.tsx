@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { Fragment, useState, type ReactNode } from "react"
 import { Building2, Check, ChevronDown, Columns3, RotateCcw, Search, SearchX, UserRound, Wrench, X, type LucideIcon } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
@@ -126,14 +126,18 @@ export function LeadFilterBar({ options, value, onChange, trailingControl }: Lea
   return (
     <div className="filter-bar">
       <div className="filter-groups">
-        {filterDefinitions.map(definition => <FilterDropdown key={definition.key} definition={definition} options={options} value={value} onChange={onChange} />)}
+        {filterDefinitions.map(definition => (
+          <Fragment key={definition.key}>
+            <FilterDropdown definition={definition} options={options} value={value} onChange={onChange} />
+            {definition.key === "stage" && trailingControl}
+          </Fragment>
+        ))}
         {active > 0 && (
           <button type="button" className="filter-reset" onClick={() => onChange(emptyLeadFilters)}>
             <RotateCcw aria-hidden="true" />
             Сбросить фильтры
           </button>
         )}
-        {trailingControl}
       </div>
       {active > 0 && (
         <ul className="filter-chips" aria-label="Выбранные фильтры">
