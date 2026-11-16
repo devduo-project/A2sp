@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { Building2, Check, ChevronDown, Columns3, RotateCcw, Search, SearchX, UserRound, Wrench, X, type LucideIcon } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
@@ -65,6 +65,7 @@ type FilterProps = {
   value: LeadFilterState
   onChange: (next: LeadFilterState) => void
 }
+type LeadFilterBarProps = FilterProps & { trailingControl?: ReactNode }
 
 function OptionList({ label, options, selected, onToggle, searchPlaceholder }: { label: string; options: string[]; selected: string[]; onToggle: (value: string) => void; searchPlaceholder?: string }) {
   const [query, setQuery] = useState("")
@@ -120,7 +121,7 @@ function FilterDropdown({ definition, options, value, onChange }: FilterProps & 
   )
 }
 
-export function LeadFilterBar({ options, value, onChange }: FilterProps) {
+export function LeadFilterBar({ options, value, onChange, trailingControl }: LeadFilterBarProps) {
   const active = countActiveFilters(value)
   return (
     <div className="filter-bar">
@@ -132,6 +133,7 @@ export function LeadFilterBar({ options, value, onChange }: FilterProps) {
             Сбросить фильтры
           </button>
         )}
+        {trailingControl}
       </div>
       {active > 0 && (
         <ul className="filter-chips" aria-label="Выбранные фильтры">
