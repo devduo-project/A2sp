@@ -360,7 +360,7 @@ export function RequisitesCard({
             <div className="mt-3 flex flex-wrap gap-2">
               <Button
                 size="sm"
-                variant="outline"
+                variant="default"
                 onClick={() => input.current?.click()}
               >
                 <FileUp />

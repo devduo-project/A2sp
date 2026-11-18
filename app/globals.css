@@ -310,13 +310,23 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 .registry-detail-dialog { width: min(540px, calc(100vw - 32px)); max-width: 540px; border-color: oklch(1 0 0 / .75); border-radius: 20px; background: linear-gradient(145deg, oklch(1 0 0 / .92), oklch(.95 .03 250 / .88)); backdrop-filter: blur(22px) saturate(140%); }
 .registry-dialog.company-requisites-dialog {
   --background: #fff;
-  --input: #8094ad;
-  --border: #c8d4e1;
+  --primary: #142e68;
+  --foreground: var(--primary);
+  --primary-foreground: #fff;
+  --muted-foreground: #52668d;
+  --accent: #edf2fc;
+  --accent-foreground: var(--primary);
+  --input: #9aaac8;
+  --border: #d5deee;
+  --ring: #4266a4;
   color: var(--primary);
   background: var(--background);
   backdrop-filter: none;
 }
-.company-requisites-dialog :is(label, [data-slot="field-label"]) { color: #111827; }
+.company-requisites-dialog :is(label, [data-slot="field-label"]) { color: #000; }
+.company-requisites-dialog fieldset > section { background: linear-gradient(var(--accent) 0 3.5rem, var(--background) 3.5rem); }
+.company-requisites-dialog [data-slot="accordion-item"] > h3 { background-color: var(--accent); box-shadow: -1rem 0 var(--accent), 1rem 0 var(--accent); }
+.company-requisites-dialog [data-slot="accordion"] { overflow: clip; }
 .company-requisites-dialog :is(input:not([type="file"]), select) { background-color: var(--background); border-color: var(--input); color: var(--primary); }
 .company-requisites-dialog :is(h2, h3, h4, .section-label, [data-slot="accordion-trigger"] svg) { color: var(--primary); }
 [data-slot="dialog-overlay"]:has(+ .company-requisites-dialog) { background-color: rgb(13 30 54 / 58%); }
