@@ -109,6 +109,7 @@ export function CompanyContactsDialog({
   onContactsChange,
   onCompanyMethodsChange,
   onSavedContact,
+  startWithNewContact = false,
 }: {
   company: CompanyViewModel | null
   open: boolean
@@ -116,9 +117,10 @@ export function CompanyContactsDialog({
   onContactsChange: (contacts: RegistryContact[]) => void
   onCompanyMethodsChange: (methods: CompanyContactMethod[]) => Promise<void>
   onSavedContact?: (contact: SavedContact) => void
+  startWithNewContact?: boolean
 }) {
   const [editing, setEditing] = useState<RegistryContact | null>(null)
-  const [editorOpen, setEditorOpen] = useState(false)
+  const [editorOpen, setEditorOpen] = useState(startWithNewContact)
   if (!company) return null
 
   const saveContact = async (contact: RegistryContact) => {
