@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { Building2, ExternalLink, Mail, Phone, Plus, Trash2, UserRound } from "lucide-react"
+import { RequisitesCard } from "@/components/company-requisites"
+import { fromCompany, type Profile } from "@/lib/company-requisites"
+import { ExternalLink, Mail, Phone, Plus, Trash2, UserRound } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -287,28 +289,9 @@ export function CompanyDetailsDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  if (!company) return null
-  const primary = company.contacts.find((contact) => contact.isPrimary)
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="registry-detail-dialog">
-        <DialogHeader>
-          <p className="section-label">Карточка компании</p>
-          <DialogTitle className="registry-company-detail-title"><Building2 />{company.legalName}</DialogTitle>
-          <DialogDescription>{company.isDemo ? "Демонстрационная запись. Связи существуют только на фронтенде." : "Карточка из доступных данных CRM."}</DialogDescription>
-        </DialogHeader>
-        <div className="registry-detail-fields">
-          <div><span>Телефоны компании</span><strong>{company.contactMethods.filter((method) => method.kind === "phone").map((method) => method.value).join(", ") || "—"}</strong></div>
-          <div><span>Email компании</span><strong>{company.contactMethods.filter((method) => method.kind === "email").map((method) => method.value).join(", ") || "—"}</strong></div>
-          <div><span>Основной контакт</span><strong>{primary?.name || "Основной контакт не указан"}</strong></div>
-          <div><span>Лиды</span><strong>{company.leads.length}</strong></div>
-          <div><span>Сделки</span><strong>{company.deals.length}</strong></div>
-          <div><span>Создана</span><strong>{company.createdAt ? new Date(company.createdAt).toLocaleDateString("ru-RU") : "—"}</strong></div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({})
+  if (!open || !company) return null
+  return <RequisitesCard key={company.id} company={company} initial={profiles[company.id] ?? fromCompany(company)} close={() => onOpenChange(false)} save={profile => setProfiles(current => ({ ...current, [company.id]: profile }))} />
 }
 
 export function ContactDetailsDialog({
