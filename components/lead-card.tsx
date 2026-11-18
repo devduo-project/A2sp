@@ -315,7 +315,7 @@ export function LeadCard({ lead, onClick, onQuickAction, savedContacts = [], isD
   const content: Record<LeadCardElementId, React.ReactNode> = {
     direction: <div className="lead-card-direction"><span className="direction-chip" data-direction={directionTone[lead.direction ?? "А2-СП"]}>{lead.direction ?? "А2-СП"}</span></div>,
     company: <div className="lead-company-row"><h3>{lead.company}</h3></div>,
-    duration: <span className={cn("lead-stage-duration", lead.days >= 14 && "is-long")}>{lead.days} дн в стад��и</span>,
+    duration: <span className={cn("lead-stage-duration", lead.days >= 14 && "is-long")}>{lead.days} дн в стадии</span>,
     service: <p className="lead-service"><Building2 />{lead.request}</p>,
     object: <div className="lead-object-line"><button className="lead-address-icon" type="button" title="Показать адрес объекта" aria-label={`Показать адрес: ${lead.objectName || "Название объекта не указано"}`} onClick={openAddress}><MapPin /></button><button className="lead-object-name" type="button" onClick={openAddress}>{lead.objectName || "Название объекта не указано"}</button></div>,
     financials: <div className="lead-financials" onClick={(event) => event.stopPropagation()}><strong>{formatRubles(lead.value)}</strong><Select value={quoteStatus} onValueChange={setQuoteStatus}><SelectTrigger aria-label="Статус КП"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="КП озвучено">КП озвучено</SelectItem><SelectItem value="КП отправлено">КП отправлено</SelectItem></SelectContent></Select></div>,
