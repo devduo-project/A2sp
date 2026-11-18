@@ -187,10 +187,12 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 @media (prefers-reduced-motion: reduce) { .filter-chip, .leads-empty { animation: none; } .filter-chevron { transition: none; } }
 
 .crm-shell.registry-shell { min-width: 0; }.registry-page { width: 100%; min-width: 0; }.registry-workspace > .toolbar, .registry-workspace > .topbar { display: none; }
-.crm-shell:has(.contacts-registry-page) .floating-navbar-slot { margin-bottom: 38px; }
+.crm-shell:has(.contacts-registry-page) .floating-navbar-slot,
+.crm-shell:has(.companies-registry-page) .floating-navbar-slot { margin-bottom: 38px; }
 .registry-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0 12px 12px; }
 .contacts-registry-page .registry-toolbar { row-gap: 16px; margin-bottom: 8px; }
-.contacts-registry-page .registry-contact-summary { margin: 0 12px 12px; color: var(--muted-foreground); font-size: 12px; line-height: 1.4; }
+.contacts-registry-page .registry-contact-summary,
+.companies-registry-page .registry-contact-summary { margin: 0 12px 12px; color: var(--muted-foreground); font-size: 12px; line-height: 1.4; }
 .registry-search { display: flex; align-items: center; gap: 8px; width: min(100%, 470px); min-height: 38px; padding: 0 10px; border: 1px solid oklch(1 0 0 / .68); border-radius: 13px; background: oklch(1 0 0 / .44); backdrop-filter: blur(14px); box-shadow: inset 0 1px oklch(1 0 0 / .55); color: var(--muted-foreground); }
 .registry-search > svg { width: 16px; height: 16px; flex: none; }
 .registry-search input { min-width: 0; border: 0; background: transparent; box-shadow: none; }
@@ -207,6 +209,8 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
   .registry-stage-popover { width: min(300px, calc(100vw - 32px)); padding: 12px; border: 1px solid oklch(1 0 0 / .75); border-radius: 16px; background: linear-gradient(145deg, oklch(1 0 0 / .94), oklch(.95 .03 250 / .9)); backdrop-filter: blur(20px); box-shadow: 0 16px 40px oklch(.25 .06 250 / .16), inset 0 1px oklch(1 0 0 / .7); }
   .registry-stage-description { margin: 0 0 10px; color: var(--muted-foreground); font-size: 12px; line-height: 1.45; }
   .registry-stage-options { display: flex; flex-direction: column; gap: 4px; }
+  .registry-creator-popover { display: flex; flex-direction: column; gap: 8px; }
+  .registry-creator-options { max-height: 220px; overflow-y: auto; }
   .registry-stage-option { display: flex; min-height: 34px; align-items: center; gap: 9px; padding: 5px 7px; border-radius: 9px; color: var(--foreground); font-size: 12px; cursor: pointer; }
   .registry-stage-option:hover { background: oklch(.85 .07 235 / .22); }
 .registry-stage-option [data-slot="checkbox"] { border-color: #475569; background-color: rgba(255,255,255,.72); }

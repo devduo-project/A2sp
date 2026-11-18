@@ -1,10 +1,14 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Building2, ChevronDown, ChevronUp, ExternalLink, Mail, Phone, Search } from "lucide-react"
+import { ArrowUpDown, Building2, Check, ChevronDown, ChevronUp, ExternalLink, Mail, Phone, Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { employees } from "@/lib/employees"
+import { leadStages } from "@/lib/lead-stages"
 import { cn } from "@/lib/utils"
 import { leadStageColors, type LeadStage } from "@/lib/lead-stages"
 import { parseRegistryDate, type CompanyViewModel, type RegistryContact, type RegistryRecord } from "@/lib/company-registry-data"
@@ -14,6 +18,16 @@ import type { CompanyContactMethod } from "@/lib/db/schema"
 
 type SortKey = "name" | "record" | "createdAt" | "createdBy" | "leadAmount" | "contractAmount" | "customerDebt"
 type SortDirection = "asc" | "desc"
+
+const stageLabels: Record<(typeof leadStages)[number], string> = {
+  "Новый лид": "Новый лид",
+  "Подготовка КП": "Подготовка КП",
+  "КП отправлено: ожидает решения": "КП отправлено",
+  "Потенциальный": "Потенциальный",
+  "Нецелевой лид": "Нецелевой",
+  "Отложенный": "Отложенный",
+  "Несостоявшийся": "Несостоявшийся",
+}
 
 const moneyFormatter = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 })
 const formatMoney = (value?: number) => value === undefined || !Number.isFinite(value) ? "—" : `${moneyFormatter.format(value)} ₽`
@@ -49,18 +63,20 @@ export function CompaniesTable({
 }) {
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" })
   const [search, setSearch] = useState("")
-  const [creatorFilter, setCreatorFilter] = useState("all")
-  const [responsibleFilter, setResponsibleFilter] = useState("all")
-  const [stageFilter, setStageFilter] = useState("all")
+  const [selectedCreators, setSelectedCreators] = useState<string[]>([])
+  const [creatorSearch, setCreatorSearch] = useState("")
+  const [creatorOpen, setCreatorOpen] = useState(false)
+  const [selectedStages, setSelectedStages] = useState<string[]>([])
+  const [stageOpen, setStageOpen] = useState(false)
   const [directionFilter, setDirectionFilter] = useState("all")
+  const [sortOpen, setSortOpen] = useState(false)
   const [contactsCompanyId, setContactsCompanyId] = useState<string | null>(null)
   const [recordsCompanyId, setRecordsCompanyId] = useState<string | null>(null)
   const contactsCompany = companies.find((company) => company.id === contactsCompanyId) ?? null
   const recordsCompany = companies.find((company) => company.id === recordsCompanyId) ?? null
 
-  const creators = useMemo(() => [...new Set(companies.map((company) => company.createdBy).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, "ru")), [companies])
-  const responsibles = useMemo(() => [...new Set(companies.map((company) => company.responsible).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, "ru")), [companies])
-  const stages = useMemo(() => [...new Set(companies.flatMap((company) => [...company.leads, ...company.deals].map((record) => record.stage)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru")), [companies])
+  const creators = useMemo(() => [...new Set([...employees, ...companies.map((company) => company.createdBy).filter((value): value is string => Boolean(value))])].sort((a, b) => a.localeCompare(b, "ru")), [companies])
+  const visibleCreators = creators.filter((creator) => creator.toLocaleLowerCase("ru").includes(creatorSearch.toLocaleLowerCase("ru").trim()))
   const directions = useMemo(() => [...new Set(companies.map((company) => company.direction).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, "ru")), [companies])
 
   const rows = useMemo(() => {
@@ -69,10 +85,9 @@ export function CompaniesTable({
       const primary = company.contacts.find((contact) => contact.isPrimary)
       const contactSearch = company.contacts.flatMap((contact) => [contact.name, contact.phones.join(" "), contact.emails.join(" "), contact.telegram ?? "", (contact.contactMethods ?? []).map((method) => `${method.provider ?? ""} ${method.value}`).join(" ")]).join(" ")
       const haystack = `${company.legalName} ${primary?.name ?? ""} ${contactSearch}`.toLocaleLowerCase("ru")
-      const stageMatch = stageFilter === "all" || [...company.leads, ...company.deals].some((record) => record.stage === stageFilter)
+      const stageMatch = selectedStages.length === 0 || company.leads.some((lead) => selectedStages.includes(lead.stage))
       return terms.every((term) => haystack.includes(term))
-        && (creatorFilter === "all" || company.createdBy === creatorFilter)
-        && (responsibleFilter === "all" || company.responsible === responsibleFilter)
+        && (selectedCreators.length === 0 || selectedCreators.includes(company.createdBy ?? ""))
         && stageMatch
         && (directionFilter === "all" || company.direction === directionFilter)
     })
@@ -92,12 +107,23 @@ export function CompaniesTable({
       if (sort.key === "customerDebt") return compareMissingLast(a.customerDebt, b.customerDebt, sort.direction)
       return sort.direction === "asc" ? result : -result
     })
-  }, [companies, creatorFilter, directionFilter, responsibleFilter, search, sort, stageFilter])
+  }, [companies, directionFilter, search, selectedCreators, selectedStages, sort])
 
   const toggleSort = (key: SortKey) => setSort((current) => {
     if (current.key !== key) return { key, direction: key === "createdAt" ? "desc" : "asc" }
     return { key, direction: current.direction === "asc" ? "desc" : "asc" }
   })
+
+  const sortOptions: Array<{ key: SortKey; label: string; ascendingLabel: string; descendingLabel: string; defaultDirection: SortDirection }> = [
+    { key: "name", label: "Компания", ascendingLabel: "А–Я", descendingLabel: "Я–А", defaultDirection: "asc" },
+    { key: "leadAmount", label: "Стоимость лида", ascendingLabel: "От меньшей к большей", descendingLabel: "От большей к меньшей", defaultDirection: "asc" },
+    { key: "contractAmount", label: "Стоимость договора", ascendingLabel: "От меньшей к большей", descendingLabel: "От большей к меньшей", defaultDirection: "asc" },
+    { key: "createdAt", label: "Дата создания", ascendingLabel: "Сначала старые", descendingLabel: "Сначала новые", defaultDirection: "desc" },
+  ]
+
+  const selectSort = (key: SortKey) => setSort((current) => current.key === key
+    ? { key, direction: current.direction === "asc" ? "desc" : "asc" }
+    : { key, direction: key === "createdAt" ? "desc" : "asc" })
 
   const SortArrow = ({ column }: { column: SortKey }) => sort.key === column
     ? sort.direction === "asc" ? <ChevronUp aria-label="По возрастанию" /> : <ChevronDown aria-label="По убыванию" />
@@ -113,27 +139,47 @@ export function CompaniesTable({
   ]
 
   return (
-    <div className="registry-page">
+    <div className="registry-page companies-registry-page">
       <div className="registry-toolbar">
         <label className="registry-search">
           <Search aria-hidden="true" />
           <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Компания, контакт, телефон или email" aria-label="Поиск компаний" />
         </label>
         <div className="registry-filters" aria-label="Фильтры компаний">
-          <select className="registry-filter-select" aria-label="Фильтр по создателю" value={creatorFilter} onChange={(event) => setCreatorFilter(event.target.value)}>
-            <option value="all">Все создатели</option>{creators.map((creator) => <option key={creator} value={creator}>{creator}</option>)}
-          </select>
-          <select className="registry-filter-select" aria-label="Фильтр по ответственному" value={responsibleFilter} onChange={(event) => setResponsibleFilter(event.target.value)}>
-            <option value="all">Все ответственные</option>{responsibles.map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
-          <select className="registry-filter-select" aria-label="Фильтр по стадии" value={stageFilter} onChange={(event) => setStageFilter(event.target.value)}>
-            <option value="all">Все стадии</option>{stages.map((stage) => <option key={stage} value={stage}>{stage}</option>)}
-          </select>
+          <Popover open={creatorOpen} onOpenChange={(open) => { setCreatorOpen(open); if (open) { setStageOpen(false); setSortOpen(false) } }}>
+            <PopoverTrigger asChild><button type="button" className="registry-stage-filter" aria-label={`Фильтр по создателям${selectedCreators.length ? `: выбрано ${selectedCreators.length}` : ""}`}>{selectedCreators.length ? `Создатели · ${selectedCreators.length}` : "Все создатели"}<ChevronDown aria-hidden="true" /></button></PopoverTrigger>
+            <PopoverContent align="start" className="registry-stage-popover registry-creator-popover">
+              <Input value={creatorSearch} onChange={(event) => setCreatorSearch(event.target.value)} placeholder="Поиск сотрудника..." aria-label="Поиск сотрудника" />
+              <div className="registry-stage-options registry-creator-options" role="group" aria-label="Сотрудники-создатели">
+                {visibleCreators.map((creator) => <label className="registry-stage-option" key={creator}><Checkbox checked={selectedCreators.includes(creator)} onCheckedChange={(checked) => setSelectedCreators((current) => checked ? [...current, creator] : current.filter((name) => name !== creator))} /><span>{creator}</span></label>)}
+                {!visibleCreators.length && <span className="registry-muted">Сотрудники не найдены</span>}
+              </div>
+              <button type="button" className="registry-stage-clear" disabled={!selectedCreators.length} onClick={() => setSelectedCreators([])}>Очистить выбор</button>
+            </PopoverContent>
+          </Popover>
+          <Popover open={stageOpen} onOpenChange={(open) => { setStageOpen(open); if (open) { setCreatorOpen(false); setSortOpen(false) } }}>
+            <PopoverTrigger asChild><button type="button" className="registry-stage-filter" aria-label={`Фильтр по стадиям${selectedStages.length ? `: выбрано ${selectedStages.length}` : ""}`}>{selectedStages.length ? `Стадии · ${selectedStages.length}` : "Все стадии"}<ChevronDown aria-hidden="true" /></button></PopoverTrigger>
+            <PopoverContent align="start" className="registry-stage-popover">
+              <p className="registry-stage-description">Выберите стадии лидов, которым принадлежит компания</p>
+              <div className="registry-stage-options" role="group" aria-label="Стадии лидов">
+                {leadStages.map((stage) => <label className="registry-stage-option" key={stage}><Checkbox checked={selectedStages.includes(stage)} onCheckedChange={(checked) => setSelectedStages((current) => checked ? [...current, stage] : current.filter((item) => item !== stage))} /><span>{stageLabels[stage]}</span></label>)}
+              </div>
+              <button type="button" className="registry-stage-clear" disabled={!selectedStages.length} onClick={() => setSelectedStages([])}>Очистить выбор</button>
+            </PopoverContent>
+          </Popover>
           <select className="registry-filter-select" aria-label="Фильтр по направлению" value={directionFilter} onChange={(event) => setDirectionFilter(event.target.value)}>
             <option value="all">Все направления</option>{directions.map((direction) => <option key={direction} value={direction}>{direction}</option>)}
           </select>
+          <Popover open={sortOpen} onOpenChange={(open) => { setSortOpen(open); if (open) { setCreatorOpen(false); setStageOpen(false) } }}>
+            <PopoverTrigger asChild><button type="button" className="lead-sort-trigger" aria-label="Сортировать по" title="Сортировать по"><ArrowUpDown aria-hidden="true" /></button></PopoverTrigger>
+            <PopoverContent align="end" sideOffset={8} className="lead-sort-popover">
+              <div className="lead-sort-title">Сортировать по</div>
+              <div className="lead-sort-options">{sortOptions.map((option) => { const active = sort.key === option.key; const direction = active ? sort.direction : option.defaultDirection; return <button key={option.key} type="button" className="lead-sort-option" aria-pressed={active} onClick={() => { selectSort(option.key); setSortOpen(false) }}><span className="lead-sort-option-label">{option.label}</span><span className="lead-sort-option-direction">{direction === "asc" ? option.ascendingLabel : option.descendingLabel}</span><span className="lead-sort-option-check" aria-hidden="true">{active && <Check />}</span></button> })}</div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
+      <p className="registry-contact-summary" aria-live="polite">Всего компаний: {rows.length}</p>
 
       <div className="leads-table-shell registry-table-shell">
         <div className="leads-table-scroll">
