@@ -11,28 +11,10 @@ import type { SavedContact } from "@/app/actions/lead-records"
 import type { Lead } from "@/components/lead-card"
 import { Field, FormShell } from "@/components/lead-action-dialogs"
 import { employees } from "@/lib/employees"
+import { leadServices } from "@/lib/lead-services"
 
 const directions = ["А2-СП", "ИП", "МГСУ"]
 const quoteStatuses = ["КП озвучено", "КП отправлено"]
-const serviceChoices = [
-  { value: "Проектирование", label: "Проектирование" },
-  { value: "Обследование зданий и сооружений", label: "Обследование зданий и сооружений" },
-  { value: "Мониторинг", label: "Мониторинг" },
-  { value: "Проектирование композитных конструкций", label: "Проектирование композитных конструкций" },
-  { value: "Инженерные изыскания", label: "Инженерные изыскания" },
-  { value: "Геофизические исследования", label: "Геофизические исследования" },
-  { value: "Испытание анкеров", label: "Испытание анкеров" },
-  { value: "Натурные испытания конструкций", label: "Натурные испытания конструкций" },
-  { value: "Контроль качества бетона", label: "Контроль качества бетона" },
-  { value: "Авторский надзор", label: "Авторский надзор" },
-  { value: "Геодезические изыскания", label: "Геодезические изыскания" },
-  { value: "Дефектоскопия конструкций", label: "Дефектоскопия конструкций" },
-  { value: "Испытания материалов", label: "Испытания материалов" },
-  { value: "Лазерное 3D сканирование", label: "Лазерное 3D сканирование" },
-  { value: "Обследование инженерных систем и сетей здания", label: "Обследование инженерных систем и сетей здания" },
-  { value: "Проекты усиления конструкций и грунтов", label: "Проекты усиления конструкций и грунтов" },
-  { value: "Расчеты конструкций", label: "Расчеты конструкций" },
-]
 
 type NewLeadDialogProps = {
   open: boolean
@@ -186,9 +168,9 @@ function NewLeadForm({ onClose, onCreated }: Omit<NewLeadDialogProps, "open">) {
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              {serviceChoices.map((choice) => (
-                <SelectItem key={choice.value} value={choice.value}>
-                  {choice.label}
+              {leadServices.map((service) => (
+                <SelectItem key={service} value={service}>
+                  {service}
                 </SelectItem>
               ))}
             </SelectGroup>
