@@ -6,6 +6,7 @@ import { leads } from "@/lib/db/schema"
 import { isLeadStage, leadStages } from "@/lib/lead-stages"
 import { seedLeads } from "@/lib/leads-seed"
 import { employees } from "@/lib/employees"
+import { appendHistory, historyEntry, type HistoryEntry } from "@/lib/lead-details"
 import { createLeadContact, type SavedContact } from "@/app/actions/lead-records"
 import type { Lead } from "@/components/lead-card"
 import { cookies } from "next/headers"
@@ -200,7 +201,19 @@ export async function updateLeadFields(leadId: string, patch: LeadFieldsPatch): 
   return db.transaction(async (tx) => {
     const [row] = await tx.select().from(leads).where(eq(leads.id, leadId)).for("update")
     if (!row) throw new Error("Лид не найден")
-    const data = { ...row.data, ...next }
+    const entries: HistoryEntry[] = []
+    const tracked: [keyof Pick<Lead, "company" | "objectName" | "owner" | "value">, string][] = [
+      ["company", "Изменена информация о заказчике"],
+      ["objectName", "Изменено название объекта"],
+      ["owner", "Изменён ответственный"],
+      ["value", "Изменена сумма расчёта"],
+    ]
+    for (const [key, label] of tracked) {
+      if (next[key] !== undefined && next[key] !== row.data[key]) entries.push(historyEntry(label, row.data[key] ?? "", next[key]))
+    }
+    if (next.companyPhones || next.emails) entries.push(historyEntry("Изменены контакты организации"))
+    if (next.address) entries.push(historyEntry("Изменён адрес объекта"))
+    const data = { ...row.data, ...next, ...(entries.length ? { details: appendHistory(row.data.details, entries) } : {}) }
     await tx.update(leads).set({ data, updatedAt: sql`now()` }).where(eq(leads.id, leadId))
     return { ...data, id: row.id, stage: row.stage }
   })
@@ -219,7 +232,7 @@ export async function duplicateLead(leadId: string): Promise<Lead> {
     const id = `${prefix}${maxNumber + 1}`
     const position = all.reduce((max, row) => Math.max(max, row.position), 0) + 1
     const stage = leadStages[0]
-    const data = { ...source.data, days: 0 }
+    const data = { ...source.data, days: 0, details: undefined }
 
     await tx.insert(leads).values({ id, stage, position, data })
     return { ...data, id, stage }
@@ -238,17 +251,19 @@ export async function moveLead(leadId: string, stage: string, orderedIds: string
     if (!row) throw new Error("Лид не найден")
 
     let stageEnteredAt = row.data.stageEnteredAt ?? null
+    let details = row.data.details
     if (row.stage !== stage) {
       stageEnteredAt = new Date().toISOString()
+      details = appendHistory(details, [historyEntry("Изменена стадия лида", row.stage, stage)])
       await tx
         .update(leads)
-        .set({ stage, data: { ...row.data, stageEnteredAt, days: 0 }, updatedAt: sql`now()` })
+        .set({ stage, data: { ...row.data, stageEnteredAt, days: 0, details }, updatedAt: sql`now()` })
         .where(eq(leads.id, leadId))
     }
 
     for (const [position, id] of orderedIds.entries()) {
       await tx.update(leads).set({ position }).where(and(eq(leads.id, id), eq(leads.stage, stage)))
     }
-    return { stageEnteredAt }
+    return { stageEnteredAt, details }
   })
 }

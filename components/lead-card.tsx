@@ -14,6 +14,7 @@ import { tokarev } from "@/lib/employees"
 import { LeadQuickActions, type QuickActionType } from "@/components/lead-quick-actions"
 import { createLeadContact, updateLeadContact, type SavedContact } from "@/app/actions/lead-records"
 import type { ContactMethod } from "@/lib/db/schema"
+import type { LeadDetails } from "@/lib/lead-details"
 import { updateLeadFields } from "@/app/actions/leads"
 import { defaultLeadCardConfig, getLeadCardTitleStyle, type LeadCardConfig, type LeadCardElementId, type LeadCardTitleStyle } from "@/lib/lead-card-config"
 
@@ -46,6 +47,7 @@ export type Lead = {
   stage: string
   email?: string
   emails?: string[]
+  details?: LeadDetails
 }
 
 type ContactRecord = { id: number; name: string; role: string; phone: string; email: string; telegram?: string; contactMethods?: ContactMethod[]; primary?: boolean; manager?: string }
