@@ -189,7 +189,8 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 .crm-shell.registry-shell { min-width: 0; }.registry-page { width: 100%; min-width: 0; }.registry-workspace > .toolbar, .registry-workspace > .topbar { display: none; }
 .crm-shell:has(.contacts-registry-page) .floating-navbar-slot { margin-bottom: 38px; }
 .registry-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0 12px 12px; }
-.contacts-registry-page .registry-toolbar { row-gap: 16px; margin-bottom: 20px; }
+.contacts-registry-page .registry-toolbar { row-gap: 16px; margin-bottom: 8px; }
+.contacts-registry-page .registry-contact-summary { margin: 0 12px 12px; color: var(--muted-foreground); font-size: 12px; line-height: 1.4; }
 .registry-search { display: flex; align-items: center; gap: 8px; width: min(100%, 470px); min-height: 38px; padding: 0 10px; border: 1px solid oklch(1 0 0 / .68); border-radius: 13px; background: oklch(1 0 0 / .44); backdrop-filter: blur(14px); box-shadow: inset 0 1px oklch(1 0 0 / .55); color: var(--muted-foreground); }
 .registry-search > svg { width: 16px; height: 16px; flex: none; }
 .registry-search input { min-width: 0; border: 0; background: transparent; box-shadow: none; }
