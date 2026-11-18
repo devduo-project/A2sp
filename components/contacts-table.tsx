@@ -113,9 +113,9 @@ export function ContactsTable({ contacts, leads, onContactSelect, onCompanySelec
               </div>
             </PopoverContent>
           </Popover>
-          <span className="registry-contact-count" aria-live="polite">Контакты · {rows.length}</span>
         </div>
       </div>
+      <p className="registry-contact-summary" aria-live="polite">Всего контактов: {contacts.length}</p>
       <div className="leads-table-shell registry-table-shell">
         <div className="leads-table-scroll">
           <table className="leads-table registry-table contacts-registry-table">
