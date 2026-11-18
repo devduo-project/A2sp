@@ -32,30 +32,6 @@ function newestRecord(company: CompanyViewModel) {
   return [...records].sort((a, b) => (parseRegistryDate(b.createdAt) ?? 0) - (parseRegistryDate(a.createdAt) ?? 0))[0]
 }
 
-function hasContactDetailsBeyondPrimary(company: CompanyViewModel) {
-  const primary = company.contacts.find((contact) => contact.isPrimary)
-  return company.contacts.some((contact) => {
-    if (contact.id !== primary?.id) return contact.phones.length > 0 || contact.emails.length > 0 || Boolean(contact.telegram) || Boolean(contact.contactMethods?.length)
-    return contact.phones.length > 1 || contact.emails.length > 1 || Boolean(contact.telegram) || Boolean(contact.contactMethods?.length)
-  }) || (!primary && company.contacts.some((contact) => contact.phones.length || contact.emails.length || contact.telegram || contact.contactMethods?.length))
-}
-
-function CompanyMethodsCell({ company, kind, onManage }: { company: CompanyViewModel; kind: CompanyContactMethod["kind"]; onManage: () => void }) {
-  const methods = company.contactMethods.filter((method) => method.kind === kind)
-  const visible = methods.slice(0, 2)
-  const Icon = kind === "phone" ? Phone : Mail
-  return (
-    <div className="registry-company-method-cell">
-      <div className="registry-method-list">
-        {visible.map((method) => <a key={method.id} href={kind === "phone" ? `tel:${method.value.replace(/[^+\d]/g, "")}` : `mailto:${method.value}`} title={method.label || method.value} onClick={(event) => event.stopPropagation()}><Icon /><span>{method.value}</span></a>)}
-        {methods.length > visible.length && <span className="registry-muted">+{methods.length - visible.length} ещё</span>}
-        {!methods.length && <span className="registry-muted">Не добавлено</span>}
-      </div>
-      <Button className="registry-link-button" variant="ghost" size="icon" aria-label={`${methods.length ? "Изменить" : "Добавить"} ${kind === "phone" ? "телефоны" : "email"} компании ${company.legalName}`} title={methods.length ? "Изменить общие контакты" : "Добавить общий контакт"} onClick={(event) => { event.stopPropagation(); onManage() }}><ExternalLink /></Button>
-    </div>
-  )
-}
-
 export function CompaniesTable({
   companies,
   onCompanySelect,
@@ -130,11 +106,10 @@ export function CompaniesTable({
   const headers: Array<{ key: SortKey; label: string; align?: "right" }> = [
     { key: "name", label: "Компания" },
     { key: "record", label: "Лид / Сделки" },
-    { key: "createdAt", label: "Дата создания" },
-    { key: "createdBy", label: "Создал" },
     { key: "leadAmount", label: "Стоимость лида", align: "right" },
     { key: "contractAmount", label: "Стоимость договора", align: "right" },
-    { key: "customerDebt", label: "Задолженность заказчика", align: "right" },
+    { key: "createdAt", label: "Дата создания" },
+    { key: "createdBy", label: "Кто создал" },
   ]
 
   return (
@@ -166,48 +141,33 @@ export function CompaniesTable({
             <caption className="sr-only">Реестр компаний, связанных лидов и сделок</caption>
             <thead><tr>
               <th aria-sort={sort.key === "name" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === "name" && "is-sorted")} onClick={() => toggleSort("name")}><span className="registry-sort-label">{headers[0].label}</span><SortArrow column="name" /></button></th>
-              <th><span className="registry-static-header">Контакты сотрудников</span></th>
-              <th><span className="registry-static-header">Телефон компании</span></th>
-              <th><span className="registry-static-header">Email компании</span></th>
+              <th><span className="registry-static-header">Телефоны и почта</span></th>
               {headers.slice(1).map(({ key, label, align }) => <th key={key} aria-sort={sort.key === key ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === key && "is-sorted", align === "right" && "justify-end")} onClick={() => toggleSort(key)}><span className="registry-sort-label">{label}</span><SortArrow column={key} /></button></th>)}
             </tr></thead>
             <tbody>
               {rows.map((company) => {
-                const primary = company.contacts.find((contact) => contact.isPrimary)
                 const latest = newestRecord(company)
                 const relatedCount = company.leads.length + company.deals.length
-                const hasAdditionalContacts = hasContactDetailsBeyondPrimary(company)
                 const latestType = latest && company.leads.some((record) => record.id === latest.id) ? "Лид" : "Сделка"
                 return (
                   <tr key={company.id} tabIndex={0} aria-label={`Компания ${company.legalName}`} onClick={() => onCompanySelect(company)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onCompanySelect(company) } }}>
                     <td className="table-primary">
-                      <div className="registry-company-name"><Building2 aria-hidden="true" /><div><strong><button type="button" className="registry-company-name-button" onClick={(event) => { event.stopPropagation(); onCompanySelect(company) }}>{company.legalName}</button>{company.isDemo && <Badge className="registry-demo-badge" variant="outline">Демо</Badge>}</strong><button type="button" className="registry-primary-contact-link" onClick={(event) => { event.stopPropagation(); setContactsCompanyId(company.id) }}>{primary?.name || "Основной контакт не указан"}</button></div></div>
+                      <div className="registry-company-name"><Building2 aria-hidden="true" /><div><strong><button type="button" className="registry-company-name-button" onClick={(event) => { event.stopPropagation(); onCompanySelect(company) }}>{company.legalName}</button>{company.isDemo && <Badge className="registry-demo-badge" variant="outline">Демо</Badge>}</strong></div></div>
                     </td>
-                    <td>
-                      <div className="registry-contact-cell">
-                        <div className="registry-contact-cell-content">
-                          {primary?.phones[0] && <a href={`tel:${primary.phones[0].replace(/[^+\d]/g, "")}`} onClick={(event) => event.stopPropagation()}><Phone />{primary.phones[0]}</a>}
-                          {primary?.emails[0] && <a href={`mailto:${primary.emails[0]}`} onClick={(event) => event.stopPropagation()}><Mail />{primary.emails[0]}</a>}
-                          {primary?.telegram && <a href={primary.telegram.startsWith("http") ? primary.telegram : `https://t.me/${primary.telegram.replace(/^@/, "")}`} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Telegram: {primary.telegram}</a>}
-                          {(primary?.contactMethods ?? []).filter((method) => method.id !== "__telegram__").map((method) => <span key={method.id}>{method.kind === "messenger" ? `${method.provider || "Мессенджер"}: ` : method.kind === "phone" ? "Телефон: " : "Email: "}{method.value}</span>)}
-                          {!primary && <span className="registry-muted">Нет основного контакта</span>}
-                        </div>
-                        {hasAdditionalContacts && <Button className="registry-link-button" variant="ghost" size="icon" aria-label={`Открыть контакты компании ${company.legalName}`} title="Контакты компании" onClick={(event) => { event.stopPropagation(); setContactsCompanyId(company.id) }}><ExternalLink /></Button>}
-                      </div>
-                    </td>
-                    <td><CompanyMethodsCell company={company} kind="phone" onManage={() => setContactsCompanyId(company.id)} /></td>
-                    <td><CompanyMethodsCell company={company} kind="email" onManage={() => setContactsCompanyId(company.id)} /></td>
+                    <td><div className="registry-company-method-cell"><div className="registry-method-list">
+                      {[...company.contactMethods.filter((method) => method.kind === "phone"), ...company.contactMethods.filter((method) => method.kind === "email")].map((method) => { const Icon = method.kind === "phone" ? Phone : Mail; return <a key={method.id} href={method.kind === "phone" ? `tel:${method.value.replace(/[^+\d]/g, "")}` : `mailto:${method.value}`} title={method.label || method.value} onClick={(event) => event.stopPropagation()}><Icon /><span>{method.value}</span></a> })}
+                      {!company.contactMethods.length && <span className="registry-muted">Не добавлено</span>}
+                    </div><Button className="registry-link-button" variant="ghost" size="icon" aria-label={`Изменить телефоны и почту компании ${company.legalName}`} title="Изменить телефоны и почту" onClick={(event) => { event.stopPropagation(); setContactsCompanyId(company.id) }}><ExternalLink /></Button></div></td>
                     <td>
                       <div className="registry-activity-cell">
                         {latest ? <button type="button" className="registry-record-summary" onClick={(event) => { event.stopPropagation(); if (!onRecordSelect(latestType, latest)) setRecordsCompanyId(company.id) }}><span className="registry-activity-title"><span className="registry-activity-kind">{latestType}</span><span className="registry-activity-name">{latest.name}</span></span><Badge className="registry-stage-badge" variant="secondary" data-kind={latestType.toLowerCase()} style={latestType === "Лид" && leadStageColors[latest.stage as LeadStage] ? { backgroundColor: `${leadStageColors[latest.stage as LeadStage]}22`, color: leadStageColors[latest.stage as LeadStage] } : undefined}>{latest.stage}</Badge></button> : <span className="registry-muted">Нет связанных записей</span>}
                         {relatedCount > 1 && <Button className="registry-link-button" variant="ghost" size="icon" aria-label={`Открыть лиды и сделки компании ${company.legalName}`} title="Лиды и сделки компании" onClick={(event) => { event.stopPropagation(); setRecordsCompanyId(company.id) }}><ExternalLink /></Button>}
                       </div>
                     </td>
-                    <td>{formatDate(company.createdAt)}</td>
-                    <td><div className="registry-creator">{company.createdBy && <span className="table-avatar">{company.createdBy.split(/\s+/).map((part) => part[0]).slice(0, 2).join("")}</span>}{company.createdBy || "—"}</div></td>
                     <td className="table-amount">{formatMoney(company.leadAmount)}</td>
                     <td className="table-amount">{formatMoney(company.contractAmount)}</td>
-                    <td className="table-amount">{formatMoney(company.customerDebt)}</td>
+                    <td>{formatDate(company.createdAt)}</td>
+                    <td><div className="registry-creator">{company.createdBy && <span className="table-avatar">{company.createdBy.split(/\s+/).map((part) => part[0]).slice(0, 2).join("")}</span>}{company.createdBy || "—"}</div></td>
                   </tr>
                 )
               })}

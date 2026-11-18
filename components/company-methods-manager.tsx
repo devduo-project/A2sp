@@ -108,7 +108,7 @@ export function CompanyMethodsManager({
   return (
     <section className="company-methods-manager" aria-labelledby="company-methods-title">
       <div className="company-methods-heading">
-        <div><h3 id="company-methods-title">Общие реквизиты компании</h3><p>Телефоны и email организации — отдельно от контактов сотрудников.</p></div>
+        <div><h3 id="company-methods-title" className="sr-only">Телефоны и почта организации</h3></div>
         <div className="company-method-add-actions">
           <Button type="button" size="sm" variant="outline" onClick={() => startAdd("phone")}><Plus data-icon="inline-start" /> Телефон</Button>
           <Button type="button" size="sm" variant="outline" onClick={() => startAdd("email")}><Plus data-icon="inline-start" /> Email</Button>

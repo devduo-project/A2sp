@@ -217,17 +217,14 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 
 .registry-table-shell { padding: 0 12px 16px; }
 .registry-table { min-width: 1480px; table-layout: fixed; }
-.companies-registry-table { min-width: 1840px; }
-.companies-registry-table th:nth-child(1) { width: 15%; }
-.companies-registry-table th:nth-child(2) { width: 13%; }
-.companies-registry-table th:nth-child(3) { width: 11%; }
-.companies-registry-table th:nth-child(4) { width: 12%; }
-.companies-registry-table th:nth-child(5) { width: 15%; }
-.companies-registry-table th:nth-child(6) { width: 8%; }
-.companies-registry-table th:nth-child(7) { width: 8%; }
-.companies-registry-table th:nth-child(8) { width: 6%; }
-.companies-registry-table th:nth-child(9) { width: 6%; }
-.companies-registry-table th:nth-child(10) { width: 6%; }
+ .companies-registry-table { min-width: 1420px; }
+ .companies-registry-table th:nth-child(1) { width: 19%; }
+ .companies-registry-table th:nth-child(2) { width: 19%; }
+ .companies-registry-table th:nth-child(3) { width: 17%; }
+ .companies-registry-table th:nth-child(4) { width: 14%; }
+ .companies-registry-table th:nth-child(5) { width: 14%; }
+ .companies-registry-table th:nth-child(6) { width: 9%; }
+ .companies-registry-table th:nth-child(7) { width: 8%; }
 .contacts-registry-table { min-width: 1360px; }
 .contacts-registry-table th:nth-child(1) { width: 20%; }
 .contacts-registry-table th:nth-child(2) { width: 18%; }
