@@ -111,7 +111,7 @@ function Fields({
               </>
             ) : (
               <>
-                <span className="text-xs text-muted-foreground">{label}</span>
+                <span data-slot="field-label" className="text-xs">{label}</span>
                 <span className="break-words text-sm font-medium">
                   {value || "—"}
                 </span>
@@ -298,7 +298,7 @@ export function RequisitesCard({
         if (!v) close();
       }}
     >
-      <DialogContent className="registry-dialog flex max-h-[88dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+      <DialogContent className="registry-dialog company-requisites-dialog flex max-h-[88dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
         <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12">
           <p className="section-label">Карточка компании</p>
           <DialogTitle className="break-words">
@@ -340,9 +340,7 @@ export function RequisitesCard({
               данные компании.
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Перетащите PDF, DOC, DOCX, JPG или PNG. В деморежиме имя файла
-              выбирает пример: Водоканал, Авилон или Фармстандарт. Содержимое
-              файла не отправляется.
+              Перетащите файл с реквизитами: docx или pdf.
             </p>
             <input
               ref={input}
@@ -362,7 +360,7 @@ export function RequisitesCard({
             <div className="mt-3 flex flex-wrap gap-2">
               <Button
                 size="sm"
-                variant="outline"
+                variant="default"
                 onClick={() => input.current?.click()}
               >
                 <FileUp />

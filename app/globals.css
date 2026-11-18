@@ -308,6 +308,28 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 .registry-footnote { margin: 0 14px 14px; color: var(--muted-foreground); font-size: 11px; }
 .registry-dialog { width: min(760px, calc(100vw - 32px)); max-width: 760px; max-height: min(84vh, 900px); overflow-y: auto; border-color: oklch(1 0 0 / .75); border-radius: 20px; background: linear-gradient(145deg, oklch(1 0 0 / .92), oklch(.95 .03 250 / .88)); backdrop-filter: blur(22px) saturate(140%); }
 .registry-detail-dialog { width: min(540px, calc(100vw - 32px)); max-width: 540px; border-color: oklch(1 0 0 / .75); border-radius: 20px; background: linear-gradient(145deg, oklch(1 0 0 / .92), oklch(.95 .03 250 / .88)); backdrop-filter: blur(22px) saturate(140%); }
+.registry-dialog.company-requisites-dialog {
+  --background: #fff;
+  --primary: #142e68;
+  --foreground: var(--primary);
+  --primary-foreground: #fff;
+  --muted-foreground: #52668d;
+  --accent: #edf2fc;
+  --accent-foreground: var(--primary);
+  --input: #9aaac8;
+  --border: #d5deee;
+  --ring: #4266a4;
+  color: var(--primary);
+  background: var(--background);
+  backdrop-filter: none;
+}
+.company-requisites-dialog :is(label, [data-slot="field-label"]) { color: #000; }
+.company-requisites-dialog fieldset > section { background: linear-gradient(var(--accent) 0 3.5rem, var(--background) 3.5rem); }
+.company-requisites-dialog [data-slot="accordion-item"] > h3 { background-color: var(--accent); box-shadow: -1rem 0 var(--accent), 1rem 0 var(--accent); }
+.company-requisites-dialog [data-slot="accordion"] { overflow: clip; }
+.company-requisites-dialog :is(input:not([type="file"]), select) { background-color: var(--background); border-color: var(--input); color: var(--primary); }
+.company-requisites-dialog :is(h2, h3, h4, .section-label, [data-slot="accordion-trigger"] svg) { color: var(--primary); }
+[data-slot="dialog-overlay"]:has(+ .company-requisites-dialog) { background-color: rgb(13 30 54 / 58%); }
 .registry-dialog-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 0 14px; color: var(--muted-foreground); font-size: 12px; }
 .registry-contact-list, .registry-record-list { display: flex; flex-direction: column; gap: 9px; max-height: 52vh; overflow: auto; padding: 2px; }
 .registry-contact-card { display: flex; align-items: flex-start; gap: 12px; padding: 13px; border: 1px solid oklch(1 0 0 / .78); border-radius: 14px; background: oklch(1 0 0 / .46); box-shadow: inset 0 1px oklch(1 0 0 / .65); }
