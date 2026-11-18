@@ -187,7 +187,9 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 @media (prefers-reduced-motion: reduce) { .filter-chip, .leads-empty { animation: none; } .filter-chevron { transition: none; } }
 
 .crm-shell.registry-shell { min-width: 0; }.registry-page { width: 100%; min-width: 0; }.registry-workspace > .toolbar, .registry-workspace > .topbar { display: none; }
+.crm-shell:has(.contacts-registry-page) .floating-navbar-slot { margin-bottom: 24px; }
 .registry-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0 12px 12px; }
+.contacts-registry-page .registry-toolbar { row-gap: 16px; margin-bottom: 20px; }
 .registry-search { display: flex; align-items: center; gap: 8px; width: min(100%, 470px); min-height: 38px; padding: 0 10px; border: 1px solid oklch(1 0 0 / .68); border-radius: 13px; background: oklch(1 0 0 / .44); backdrop-filter: blur(14px); box-shadow: inset 0 1px oklch(1 0 0 / .55); color: var(--muted-foreground); }
 .registry-search > svg { width: 16px; height: 16px; flex: none; }
 .registry-search input { min-width: 0; border: 0; background: transparent; box-shadow: none; }
@@ -201,6 +203,8 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
   .registry-stage-options { display: flex; flex-direction: column; gap: 4px; }
   .registry-stage-option { display: flex; min-height: 34px; align-items: center; gap: 9px; padding: 5px 7px; border-radius: 9px; color: var(--foreground); font-size: 12px; cursor: pointer; }
   .registry-stage-option:hover { background: oklch(.85 .07 235 / .22); }
+.registry-stage-option [data-slot="checkbox"] { border-color: #475569; background-color: rgba(255,255,255,.72); }
+.registry-stage-option [data-slot="checkbox"][data-state="checked"] { border-color: var(--primary); background-color: var(--primary); }
   .registry-stage-clear { margin-top: 8px; padding: 5px 7px; border: 0; background: transparent; color: var(--primary); font: inherit; font-size: 12px; cursor: pointer; }
   .registry-stage-clear:disabled { color: var(--muted-foreground); cursor: default; }
   .registry-contact-count { align-self: center; color: var(--muted-foreground); font-size: 11px; white-space: nowrap; }
@@ -215,14 +219,14 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 .companies-registry-table th:nth-child(6) { width: 9%; }
 .companies-registry-table th:nth-child(7) { width: 9%; }
 .companies-registry-table th:nth-child(8) { width: 10%; }
-.contacts-registry-table { min-width: 1280px; }
-.contacts-registry-table th:nth-child(1) { width: 19%; }
-.contacts-registry-table th:nth-child(2) { width: 16%; }
-.contacts-registry-table th:nth-child(3) { width: 14%; }
-.contacts-registry-table th:nth-child(4) { width: 14%; }
-.contacts-registry-table th:nth-child(5) { width: 16%; }
-.contacts-registry-table th:nth-child(6) { width: 10%; }
-.contacts-registry-table th:nth-child(7) { width: 11%; }
+.contacts-registry-table { min-width: 1120px; }
+.contacts-registry-table th:nth-child(1) { width: 21%; }
+.contacts-registry-table th:nth-child(2) { width: 19%; }
+.contacts-registry-table th:nth-child(3) { width: 18%; }
+.contacts-registry-table th:nth-child(4) { width: 18%; }
+.contacts-registry-table th:nth-child(5) { width: 12%; }
+.contacts-registry-table th:nth-child(6) { width: 6%; }
+.contacts-registry-table th:nth-child(7) { width: 6%; }
 .registry-table th button { display: flex; align-items: center; min-height: 56px; padding: 8px 10px; gap: 4px; font-size: 12px; line-height: 1.3; white-space: normal; }
 .registry-table th button svg { width: 14px; height: 14px; flex: none; }
 .registry-sort-label { min-width: 0; }
@@ -256,10 +260,9 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 .registry-creator .table-avatar { width: 24px; height: 24px; flex: none; font-size: 9px; }
 .registry-table .table-amount { padding-inline: 10px; overflow-wrap: normal; color: var(--foreground); font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .registry-company-link { padding: 0; border: 0; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
-.registry-person { display: flex; align-items: center; gap: 8px; color: var(--foreground); }
-.registry-person-avatar { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 50%; background: oklch(0.28 0.08 252 / .1); color: var(--primary); }
-.registry-person-avatar svg { width: 15px; height: 15px; }
-.registry-person strong { overflow-wrap: anywhere; font-size: 12px; }.registry-contact-name-button, .registry-company-name-button { padding: 0; border: 0; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }.registry-contact-name-button:hover strong, .registry-company-name-button:hover { color: var(--primary); text-decoration: underline; }
+.registry-person { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; color: var(--foreground); }
+.registry-person strong { overflow-wrap: anywhere; font-size: 12px; }.registry-contact-name-button, .registry-company-name-button { max-width: 100%; padding: 0; border: 0; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }.registry-contact-name-button:hover strong, .registry-company-name-button:hover { color: var(--primary); text-decoration: underline; }
+.registry-contact-role { max-width: 100%; color: var(--muted-foreground); font-size: 11px; line-height: 1.35; overflow-wrap: anywhere; }
 .registry-footnote { margin: 0 14px 14px; color: var(--muted-foreground); font-size: 11px; }
 .registry-dialog { width: min(760px, calc(100vw - 32px)); max-width: 760px; max-height: min(84vh, 900px); overflow-y: auto; border-color: oklch(1 0 0 / .75); border-radius: 20px; background: linear-gradient(145deg, oklch(1 0 0 / .92), oklch(.95 .03 250 / .88)); backdrop-filter: blur(22px) saturate(140%); }
 .registry-detail-dialog { width: min(540px, calc(100vw - 32px)); max-width: 540px; border-color: oklch(1 0 0 / .75); border-radius: 20px; background: linear-gradient(145deg, oklch(1 0 0 / .92), oklch(.95 .03 250 / .88)); backdrop-filter: blur(22px) saturate(140%); }
