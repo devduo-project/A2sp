@@ -5,6 +5,7 @@ import { Building2, Check, ChevronDown, Columns3, RotateCcw, Search, SearchX, Us
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { employees } from "@/lib/employees"
+import { leadServices } from "@/lib/lead-services"
 import type { Lead } from "@/components/lead-card"
 
 export type FilterKey = "owner" | "direction" | "workType" | "stage"
@@ -20,10 +21,13 @@ const filterDefinitions: { key: FilterKey; label: string; icon: LucideIcon }[] =
   { key: "stage", label: "Стадия", icon: Columns3 },
 ]
 
-export const serviceOptions = ["Обследование", "Проектирование", "Технический аудит"]
+export const serviceOptions = [...leadServices, "Обследование", "Технический аудит"]
 
 function serviceOf(request: string) {
-  const text = request.toLowerCase()
+  const text = request.split(";", 1)[0].trim().toLowerCase()
+  const exact = serviceOptions.find(service => service.toLowerCase() === text)
+  if (exact) return exact
+  if (text === "расчёт конструкций" || text === "расчет конструкций") return "Расчеты конструкций"
   if (text.includes("аудит")) return "Технический аудит"
   if (text.includes("проектир") || text.includes("расчёт") || text.includes("расчет") || text.includes("конструкц")) return "Проектирование"
   if (text.includes("обследован")) return "Обследование"
