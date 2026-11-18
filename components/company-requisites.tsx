@@ -340,9 +340,7 @@ export function RequisitesCard({
               данные компании.
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Перетащите PDF, DOC, DOCX, JPG или PNG. В деморежиме имя файла
-              выбирает пример: Водоканал, Авилон или Фармстандарт. Содержимое
-              файла не отправляется.
+              Перетащите файл с реквизитами: docx или pdf.
             </p>
             <input
               ref={input}
