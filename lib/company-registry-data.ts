@@ -1,6 +1,7 @@
 import type { Lead } from "@/components/lead-card"
 import type { SavedContact } from "@/app/actions/lead-records"
-import type { ContactMethod } from "@/lib/db/schema"
+import type { CompanyContactMethod, ContactMethod } from "@/lib/db/schema"
+import type { SavedCompany } from "@/app/actions/companies"
 
 export type RegistryContact = {
   id: string
@@ -30,7 +31,9 @@ export type RegistryRecord = {
 
 export type CompanyViewModel = {
   id: string
+  databaseId?: number
   legalName: string
+  contactMethods: CompanyContactMethod[]
   contacts: RegistryContact[]
   leads: RegistryRecord[]
   deals: RegistryRecord[]
@@ -100,18 +103,43 @@ export function buildCompanyViewModels(
   savedContacts: SavedContact[],
   deals: ExistingDeal[],
   demoCompanies: DemoCompany[],
+  savedCompanies: SavedCompany[] = [],
 ): CompanyViewModel[] {
   const byName = new Map<string, CompanyViewModel>()
+  const savedByName = new Map(savedCompanies.map((company) => [company.legalName.trim(), company]))
   const leadById = new Map(leads.map((lead) => [lead.id, lead]))
+
+  for (const saved of savedCompanies) {
+    const legalName = saved.legalName.trim()
+    if (!legalName) continue
+    byName.set(legalName, {
+      id: `company-${saved.id}`,
+      databaseId: saved.id,
+      legalName,
+      contactMethods: saved.contactMethods,
+      contacts: [],
+      leads: [],
+      deals: [],
+      createdAt: saved.createdAt,
+      createdBy: saved.createdBy,
+      leadAmount: saved.leadAmount,
+      contractAmount: saved.contractAmount,
+      customerDebt: saved.customerDebt,
+      isDemo: false,
+    })
+  }
 
   const getCompany = (legalName: string) => {
     const exactName = legalName.trim()
     if (!exactName) return undefined
     const existing = byName.get(exactName)
     if (existing) return existing
+    const saved = savedByName.get(exactName)
     const company: CompanyViewModel = {
-      id: `source-company-${encodeURIComponent(exactName)}`, 
+      id: saved ? `company-${saved.id}` : `source-company-${encodeURIComponent(exactName)}`,
+      databaseId: saved?.id,
       legalName: exactName,
+      contactMethods: saved?.contactMethods ?? [],
       contacts: [],
       leads: [],
       deals: [],
@@ -219,6 +247,7 @@ export function buildCompanyViewModels(
     if (merged.length >= 5 && contactCount >= 8) break
     const demoRow: CompanyViewModel = {
       ...demo,
+      contactMethods: [],
       contacts: [...demo.contacts],
       leads: sortNewest([...demo.leads]),
       deals: sortNewest([...demo.deals]),

@@ -1,8 +1,20 @@
-import { integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core"
+import { integer, jsonb, numeric, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core"
 import type { Lead } from "@/components/lead-card"
 
 export type LeadData = Omit<Lead, "id" | "stage">
 export type ContactMethod = { id: string; kind: "messenger" | "phone" | "email"; provider?: string; value: string }
+export type CompanyContactMethod = { id: string; kind: "phone" | "email"; label: string; value: string }
+
+export const companies = pgTable("companies", {
+  id: serial("id").primaryKey(),
+  legalName: text("legal_name").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }),
+  createdBy: text("created_by"),
+  leadAmount: numeric("lead_amount", { mode: "number" }),
+  contractAmount: numeric("contract_amount", { mode: "number" }),
+  customerDebt: numeric("customer_debt", { mode: "number" }),
+  contactMethods: jsonb("contact_methods").$type<CompanyContactMethod[]>().notNull().default([]),
+})
 
 export const leads = pgTable("leads", {
   id: text("id").primaryKey(),

@@ -2,12 +2,15 @@
 
 import { useMemo, useState } from "react"
 import type { Lead } from "@/components/lead-card"
+import type { SavedCompany } from "@/app/actions/companies"
+import { saveCompanyContactMethods } from "@/app/actions/companies"
 import type { SavedContact } from "@/app/actions/lead-records"
 import { CompaniesTable } from "@/components/companies-table"
 import { ContactsTable } from "@/components/contacts-table"
 import { CompanyDetailsDialog, ContactDetailsDialog } from "@/components/company-registry-dialogs"
 import { buildCompanyViewModels, flattenCompanyContacts, type ExistingDeal } from "@/lib/company-registry-data"
 import { demoCompanies } from "@/lib/company-registry-demo"
+import type { CompanyContactMethod } from "@/lib/db/schema"
 
 type RegistryView = "companies" | "contacts"
 
@@ -15,6 +18,7 @@ export function CompanyRegistry({
   view,
   leads,
   savedContacts,
+  savedCompanies,
   deals,
   onLeadSelect,
   onDealSelect,
@@ -23,12 +27,13 @@ export function CompanyRegistry({
   view: RegistryView
   leads: Lead[]
   savedContacts: SavedContact[]
+  savedCompanies: SavedCompany[]
   deals: ExistingDeal[]
   onLeadSelect: (leadId: string) => boolean
   onDealSelect: (dealId: string) => boolean
   onSavedContact?: (contact: SavedContact) => void
 }) {
-  const [companies, setCompanies] = useState(() => buildCompanyViewModels(leads, savedContacts, deals, demoCompanies))
+  const [companies, setCompanies] = useState(() => buildCompanyViewModels(leads, savedContacts, deals, demoCompanies, savedCompanies))
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null)
   const selectedCompany = companies.find((company) => company.id === selectedCompanyId) ?? null
@@ -39,6 +44,19 @@ export function CompanyRegistry({
     setCompanies((current) => current.map((company) => company.id === companyId ? { ...company, contacts: nextContacts } : company))
   }
 
+  const updateCompanyMethods = async (companyId: string, methods: CompanyContactMethod[]) => {
+    const company = companies.find((item) => item.id === companyId)
+    if (!company) throw new Error("Компания не найдена")
+    if (company.isDemo) {
+      setCompanies((current) => current.map((item) => item.id === companyId ? { ...item, contactMethods: methods } : item))
+      return
+    }
+    const saved = await saveCompanyContactMethods(company.legalName, methods)
+    setCompanies((current) => current.map((item) => item.id === companyId
+      ? { ...item, databaseId: saved.id, contactMethods: saved.contactMethods }
+      : item))
+  }
+
   return (
     <>
       {view === "companies" ? (
@@ -46,6 +64,7 @@ export function CompanyRegistry({
           companies={companies}
           onCompanySelect={(company) => setSelectedCompanyId(company.id)}
           onContactsChange={updateCompanyContacts}
+          onCompanyMethodsChange={updateCompanyMethods}
           onSavedContact={onSavedContact}
           onRecordSelect={(type, record) => {
             if (type === "Лид" && record.originalLeadId) return onLeadSelect(record.originalLeadId)
