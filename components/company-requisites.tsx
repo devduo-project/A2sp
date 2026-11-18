@@ -111,7 +111,7 @@ function Fields({
               </>
             ) : (
               <>
-                <span className="text-xs text-muted-foreground">{label}</span>
+                <span data-slot="field-label" className="text-xs">{label}</span>
                 <span className="break-words text-sm font-medium">
                   {value || "—"}
                 </span>
@@ -298,7 +298,7 @@ export function RequisitesCard({
         if (!v) close();
       }}
     >
-      <DialogContent className="registry-dialog flex max-h-[88dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+      <DialogContent className="registry-dialog company-requisites-dialog flex max-h-[88dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
         <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12">
           <p className="section-label">Карточка компании</p>
           <DialogTitle className="break-words">
