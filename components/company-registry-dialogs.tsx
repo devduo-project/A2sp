@@ -13,7 +13,8 @@ import { Textarea } from "@/components/ui/textarea"
 import type { Lead } from "@/components/lead-card"
 import type { CompanyViewModel, RegistryContact, RegistryRecord } from "@/lib/company-registry-data"
 import { createLeadContact, updateLeadContact, type SavedContact } from "@/app/actions/lead-records"
-import type { ContactMethod } from "@/lib/db/schema"
+import type { CompanyContactMethod, ContactMethod } from "@/lib/db/schema"
+import { CompanyMethodsManager } from "@/components/company-methods-manager"
 
 function ContactEditor({
   contact,
@@ -104,12 +105,14 @@ export function CompanyContactsDialog({
   open,
   onOpenChange,
   onContactsChange,
+  onCompanyMethodsChange,
   onSavedContact,
 }: {
   company: CompanyViewModel | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onContactsChange: (contacts: RegistryContact[]) => void
+  onCompanyMethodsChange: (methods: CompanyContactMethod[]) => Promise<void>
   onSavedContact?: (contact: SavedContact) => void
 }) {
   const [editing, setEditing] = useState<RegistryContact | null>(null)
@@ -169,8 +172,10 @@ export function CompanyContactsDialog({
         <DialogHeader>
           <p className="section-label">{company.legalName}</p>
           <DialogTitle>Контакты компании</DialogTitle>
-          <DialogDescription>Контактные данные и основные лица компании.</DialogDescription>
+          <DialogDescription>Общие телефоны и email организации, а также контакты сотрудников.</DialogDescription>
         </DialogHeader>
+        <CompanyMethodsManager methods={company.contactMethods} onSave={onCompanyMethodsChange} isDemo={company.isDemo} />
+        <div className="company-employee-contacts-heading"><h3>Контакты сотрудников</h3><p>Личные способы связи, привязанные к людям и лидам.</p></div>
         {editorOpen ? (
           <ContactEditor key={editing?.id ?? "new"} contact={editing ?? undefined} onCancel={() => { setEditorOpen(false); setEditing(null) }} onSave={saveContact} />
         ) : (
@@ -294,6 +299,8 @@ export function CompanyDetailsDialog({
           <DialogDescription>{company.isDemo ? "Демонстрационная запись. Связи существуют только на фронтенде." : "Карточка из доступных данных CRM."}</DialogDescription>
         </DialogHeader>
         <div className="registry-detail-fields">
+          <div><span>Телефоны компании</span><strong>{company.contactMethods.filter((method) => method.kind === "phone").map((method) => method.value).join(", ") || "—"}</strong></div>
+          <div><span>Email компании</span><strong>{company.contactMethods.filter((method) => method.kind === "email").map((method) => method.value).join(", ") || "—"}</strong></div>
           <div><span>Основной контакт</span><strong>{primary?.name || "Основной контакт не указан"}</strong></div>
           <div><span>Лиды</span><strong>{company.leads.length}</strong></div>
           <div><span>Сделки</span><strong>{company.deals.length}</strong></div>

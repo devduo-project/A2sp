@@ -10,6 +10,7 @@ import { leadStageColors, type LeadStage } from "@/lib/lead-stages"
 import { parseRegistryDate, type CompanyViewModel, type RegistryContact, type RegistryRecord } from "@/lib/company-registry-data"
 import { CompanyContactsDialog, CompanyRecordsDialog } from "@/components/company-registry-dialogs"
 import type { SavedContact } from "@/app/actions/lead-records"
+import type { CompanyContactMethod } from "@/lib/db/schema"
 
 type SortKey = "name" | "record" | "createdAt" | "createdBy" | "leadAmount" | "contractAmount" | "customerDebt"
 type SortDirection = "asc" | "desc"
@@ -39,16 +40,34 @@ function hasContactDetailsBeyondPrimary(company: CompanyViewModel) {
   }) || (!primary && company.contacts.some((contact) => contact.phones.length || contact.emails.length || contact.telegram || contact.contactMethods?.length))
 }
 
+function CompanyMethodsCell({ company, kind, onManage }: { company: CompanyViewModel; kind: CompanyContactMethod["kind"]; onManage: () => void }) {
+  const methods = company.contactMethods.filter((method) => method.kind === kind)
+  const visible = methods.slice(0, 2)
+  const Icon = kind === "phone" ? Phone : Mail
+  return (
+    <div className="registry-company-method-cell">
+      <div className="registry-method-list">
+        {visible.map((method) => <a key={method.id} href={kind === "phone" ? `tel:${method.value.replace(/[^+\d]/g, "")}` : `mailto:${method.value}`} title={method.label || method.value} onClick={(event) => event.stopPropagation()}><Icon /><span>{method.value}</span></a>)}
+        {methods.length > visible.length && <span className="registry-muted">+{methods.length - visible.length} ещё</span>}
+        {!methods.length && <span className="registry-muted">Не добавлено</span>}
+      </div>
+      <Button className="registry-link-button" variant="ghost" size="icon" aria-label={`${methods.length ? "Изменить" : "Добавить"} ${kind === "phone" ? "телефоны" : "email"} компании ${company.legalName}`} title={methods.length ? "Изменить общие контакты" : "Добавить общий контакт"} onClick={(event) => { event.stopPropagation(); onManage() }}><ExternalLink /></Button>
+    </div>
+  )
+}
+
 export function CompaniesTable({
   companies,
   onCompanySelect,
   onContactsChange,
+  onCompanyMethodsChange,
   onRecordSelect,
   onSavedContact,
 }: {
   companies: CompanyViewModel[]
   onCompanySelect: (company: CompanyViewModel) => void
   onContactsChange: (companyId: string, contacts: RegistryContact[]) => void
+  onCompanyMethodsChange: (companyId: string, methods: CompanyContactMethod[]) => Promise<void>
   onRecordSelect: (type: "Лид" | "Сделка", record: RegistryRecord) => boolean
   onSavedContact?: (contact: SavedContact) => void
 }) {
@@ -147,7 +166,9 @@ export function CompaniesTable({
             <caption className="sr-only">Реестр компаний, связанных лидов и сделок</caption>
             <thead><tr>
               <th aria-sort={sort.key === "name" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === "name" && "is-sorted")} onClick={() => toggleSort("name")}><span className="registry-sort-label">{headers[0].label}</span><SortArrow column="name" /></button></th>
-              <th><span className="registry-static-header">Контакты компании</span></th>
+              <th><span className="registry-static-header">Контакты сотрудников</span></th>
+              <th><span className="registry-static-header">Телефон компании</span></th>
+              <th><span className="registry-static-header">Email компании</span></th>
               {headers.slice(1).map(({ key, label, align }) => <th key={key} aria-sort={sort.key === key ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === key && "is-sorted", align === "right" && "justify-end")} onClick={() => toggleSort(key)}><span className="registry-sort-label">{label}</span><SortArrow column={key} /></button></th>)}
             </tr></thead>
             <tbody>
@@ -174,6 +195,8 @@ export function CompaniesTable({
                         {hasAdditionalContacts && <Button className="registry-link-button" variant="ghost" size="icon" aria-label={`Открыть контакты компании ${company.legalName}`} title="Контакты компании" onClick={(event) => { event.stopPropagation(); setContactsCompanyId(company.id) }}><ExternalLink /></Button>}
                       </div>
                     </td>
+                    <td><CompanyMethodsCell company={company} kind="phone" onManage={() => setContactsCompanyId(company.id)} /></td>
+                    <td><CompanyMethodsCell company={company} kind="email" onManage={() => setContactsCompanyId(company.id)} /></td>
                     <td>
                       <div className="registry-activity-cell">
                         {latest ? <button type="button" className="registry-record-summary" onClick={(event) => { event.stopPropagation(); if (!onRecordSelect(latestType, latest)) setRecordsCompanyId(company.id) }}><span className="registry-activity-title"><span className="registry-activity-kind">{latestType}</span><span className="registry-activity-name">{latest.name}</span></span><Badge className="registry-stage-badge" variant="secondary" data-kind={latestType.toLowerCase()} style={latestType === "Лид" && leadStageColors[latest.stage as LeadStage] ? { backgroundColor: `${leadStageColors[latest.stage as LeadStage]}22`, color: leadStageColors[latest.stage as LeadStage] } : undefined}>{latest.stage}</Badge></button> : <span className="registry-muted">Нет связанных записей</span>}
@@ -194,7 +217,7 @@ export function CompaniesTable({
         </div>
       </div>
       <p className="registry-footnote">Демонстрационные строки помечены «Демо»; их изменения остаются только в интерфейсе. Данные контактов реальных компаний сохраняются в CRM.</p>
-      <CompanyContactsDialog company={contactsCompany} open={Boolean(contactsCompany)} onOpenChange={(open) => { if (!open) setContactsCompanyId(null) }} onContactsChange={(contacts) => { if (contactsCompany) onContactsChange(contactsCompany.id, contacts) }} onSavedContact={onSavedContact} />
+      <CompanyContactsDialog company={contactsCompany} open={Boolean(contactsCompany)} onOpenChange={(open) => { if (!open) setContactsCompanyId(null) }} onContactsChange={(contacts) => { if (contactsCompany) onContactsChange(contactsCompany.id, contacts) }} onCompanyMethodsChange={(methods) => { if (!contactsCompany) return Promise.reject(new Error("Компания не найдена")); return onCompanyMethodsChange(contactsCompany.id, methods) }} onSavedContact={onSavedContact} />
       <CompanyRecordsDialog company={recordsCompany} open={Boolean(recordsCompany)} onOpenChange={(open) => { if (!open) setRecordsCompanyId(null) }} onRecordSelect={onRecordSelect} />
     </div>
   )
