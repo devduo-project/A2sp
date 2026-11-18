@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { ChevronDown, ChevronUp, Mail, Phone, Search, UserRound } from "lucide-react"
+import { ArrowUpDown, Check, ChevronDown, ChevronUp, Mail, Phone, Search } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -17,7 +17,7 @@ interface ContactsTableProps {
   onCompanySelect: (companyId: string) => void
 }
 
-type SortKey = "name" | "company" | "role" | "phone" | "email" | "messenger" | "createdAt" | "createdBy"
+type SortKey = "name" | "company" | "createdBy"
 type SortDirection = "asc" | "desc"
 
 function formatDate(value?: string) {
@@ -25,18 +25,12 @@ function formatDate(value?: string) {
   return timestamp === undefined ? "—" : new Intl.DateTimeFormat("ru-RU").format(timestamp)
 }
 
-function compareDate(direction: SortDirection, a?: string, b?: string) {
-  const left = parseRegistryDate(a)
-  const right = parseRegistryDate(b)
-  if (left === undefined || right === undefined) return left === right ? 0 : left === undefined ? 1 : -1
-  return direction === "asc" ? left - right : right - left
-}
-
 export function ContactsTable({ contacts, leads, onContactSelect, onCompanySelect }: ContactsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" })
   const [search, setSearch] = useState("")
   const [primaryFilter, setPrimaryFilter] = useState("all")
   const [selectedStages, setSelectedStages] = useState<string[]>([])
+  const [sortOpen, setSortOpen] = useState(false)
   const leadById = useMemo(() => new Map(leads.map((lead) => [lead.id, lead])), [leads])
 
   const rows = useMemo(() => {
@@ -48,32 +42,30 @@ export function ContactsTable({ contacts, leads, onContactSelect, onCompanySelec
         && (primaryFilter === "all" || (primaryFilter === "primary" ? contact.isPrimary : !contact.isPrimary))
         && (selectedStages.length === 0 || Boolean(linkedLead && selectedStages.includes(linkedLead.stage)))
     }).sort((a, b) => {
-      if (sort.key === "createdAt") return compareDate(sort.direction, a.createdAt, b.createdAt)
-      const left = sort.key === "name" ? a.name : sort.key === "company" ? a.companyName : sort.key === "role" ? a.role : sort.key === "phone" ? `${a.phones.join(" ")} ${(a.contactMethods ?? []).filter((method) => method.kind === "phone").map((method) => method.value).join(" ")}` : sort.key === "email" ? `${a.emails.join(" ")} ${(a.contactMethods ?? []).filter((method) => method.kind === "email").map((method) => method.value).join(" ")}` : sort.key === "messenger" ? `${a.telegram ?? ""} ${(a.contactMethods ?? []).filter((method) => method.kind === "messenger").map((method) => method.value).join(" ")}` : a.createdBy ?? ""
-      const right = sort.key === "name" ? b.name : sort.key === "company" ? b.companyName : sort.key === "role" ? b.role : sort.key === "phone" ? `${b.phones.join(" ")} ${(b.contactMethods ?? []).filter((method) => method.kind === "phone").map((method) => method.value).join(" ")}` : sort.key === "email" ? `${b.emails.join(" ")} ${(b.contactMethods ?? []).filter((method) => method.kind === "email").map((method) => method.value).join(" ")}` : sort.key === "messenger" ? `${b.telegram ?? ""} ${(b.contactMethods ?? []).filter((method) => method.kind === "messenger").map((method) => method.value).join(" ")}` : b.createdBy ?? ""
-      const result = left.localeCompare(right, "ru")
+      const left = sort.key === "name" ? a.name : sort.key === "company" ? a.companyName : a.createdBy ?? ""
+      const right = sort.key === "name" ? b.name : sort.key === "company" ? b.companyName : b.createdBy ?? ""
+      const result = left.localeCompare(right, "ru", { sensitivity: "base" })
       return sort.direction === "asc" ? result : -result
     })
   }, [contacts, leadById, primaryFilter, search, selectedStages, sort])
 
-  const toggleSort = (key: SortKey) => setSort((current) => {
-    if (current.key !== key) return { key, direction: key === "createdAt" ? "desc" : "asc" }
-    return { key, direction: current.direction === "asc" ? "desc" : "asc" }
-  })
   const SortArrow = ({ column }: { column: SortKey }) => sort.key === column
     ? sort.direction === "asc" ? <ChevronUp aria-label="По возрастанию" /> : <ChevronDown aria-label="По убыванию" />
     : <ChevronDown className="table-sort-muted" aria-hidden="true" />
 
-  const headers: Array<{ key: SortKey; label: string }> = [
-    { key: "name", label: "Контакт" },
-    { key: "company", label: "Компания" },
-    { key: "role", label: "Должность" },
-    { key: "createdAt", label: "Дата создания" },
-    { key: "createdBy", label: "Создал" },
+  const sortOptions: Array<{ key: SortKey; label: string; ascendingLabel: string; descendingLabel: string }> = [
+    { key: "name", label: "Контакт", ascendingLabel: "А–Я", descendingLabel: "Я–А" },
+    { key: "company", label: "Компания", ascendingLabel: "А–Я", descendingLabel: "Я–А" },
+    { key: "createdBy", label: "Кто создал", ascendingLabel: "А–Я", descendingLabel: "Я–А" },
   ]
 
+  const toggleSort = (key: SortKey) => setSort((current) => ({
+    key,
+    direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
+  }))
+
   return (
-    <div className="registry-page">
+    <div className="registry-page contacts-registry-page">
       <div className="registry-toolbar">
         <label className="registry-search">
           <Search aria-hidden="true" />
@@ -103,6 +95,24 @@ export function ContactsTable({ contacts, leads, onContactSelect, onCompanySelec
               <button type="button" className="registry-stage-clear" disabled={selectedStages.length === 0} onClick={() => setSelectedStages([])}>Очистить выбор</button>
             </PopoverContent>
           </Popover>
+          <Popover open={sortOpen} onOpenChange={setSortOpen}>
+            <PopoverTrigger asChild>
+              <button type="button" className="lead-sort-trigger" aria-label="Сортировать по" title="Сортировать по"><ArrowUpDown aria-hidden="true" /></button>
+            </PopoverTrigger>
+            <PopoverContent align="end" sideOffset={8} className="lead-sort-popover">
+              <div className="lead-sort-title">Сортировать по</div>
+              <div className="lead-sort-options">
+                {sortOptions.map((option) => {
+                  const isActive = sort.key === option.key
+                  return <button key={option.key} type="button" className="lead-sort-option" aria-pressed={isActive} onClick={() => { toggleSort(option.key); setSortOpen(false) }}>
+                    <span className="lead-sort-option-label">{option.label}</span>
+                    <span className="lead-sort-option-direction">{isActive && sort.direction === "desc" ? option.descendingLabel : option.ascendingLabel}</span>
+                    <span className="lead-sort-option-check" aria-hidden="true">{isActive && <Check />}</span>
+                  </button>
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
           <span className="registry-contact-count" aria-live="polite">Контакты · {rows.length}</span>
         </div>
       </div>
@@ -111,18 +121,21 @@ export function ContactsTable({ contacts, leads, onContactSelect, onCompanySelec
           <table className="leads-table registry-table contacts-registry-table">
             <caption className="sr-only">Реестр контактов</caption>
             <thead><tr>
-              {headers.slice(0, 3).map(({ key, label }) => <th key={key} aria-sort={sort.key === key ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === key && "is-sorted")} onClick={() => toggleSort(key)}>{label}<SortArrow column={key} /></button></th>)}
-              {(["phone", "email", "messenger"] as const).map((key) => <th key={key} aria-sort={sort.key === key ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === key && "is-sorted")} onClick={() => toggleSort(key)}>{key === "phone" ? "Телефон" : key === "email" ? "Email" : "Мессенджеры"}<SortArrow column={key} /></button></th>)}
-              {headers.slice(3).map(({ key, label }) => <th key={key} aria-sort={sort.key === key ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === key && "is-sorted")} onClick={() => toggleSort(key)}>{label}<SortArrow column={key} /></button></th>)}
+              <th aria-sort={sort.key === "name" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === "name" && "is-sorted")} onClick={() => toggleSort("name")}>Контакт<SortArrow column="name" /></button></th>
+              <th aria-sort={sort.key === "company" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === "company" && "is-sorted")} onClick={() => toggleSort("company")}>Компания<SortArrow column="company" /></button></th>
+              <th><span className="registry-static-header">Телефон</span></th>
+              <th><span className="registry-static-header">Email</span></th>
+              <th><span className="registry-static-header">Мессенджеры</span></th>
+              <th><span className="registry-static-header">Дата создания</span></th>
+              <th aria-sort={sort.key === "createdBy" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button type="button" className={cn(sort.key === "createdBy" && "is-sorted")} onClick={() => toggleSort("createdBy")}>Кто создал<SortArrow column="createdBy" /></button></th>
             </tr></thead>
             <tbody>
               {rows.map((contact) => <tr key={contact.id} tabIndex={0} aria-label={`Контакт ${contact.name}`} onClick={() => onContactSelect(contact)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onContactSelect(contact) } }}>
-                <td className="table-primary"><span className="registry-person"><span className="registry-person-avatar"><UserRound /></span><button type="button" className="registry-contact-name-button" onClick={(event) => { event.stopPropagation(); onContactSelect(contact) }}><strong>{contact.name}</strong></button></span></td>
+                <td className="table-primary"><div className="registry-person"><button type="button" className="registry-contact-name-button" onClick={(event) => { event.stopPropagation(); onContactSelect(contact) }}><strong>{contact.name}</strong></button>{contact.role && <span className="registry-contact-role">{contact.role}</span>}</div></td>
                 <td><button type="button" className="registry-company-link" onClick={(event) => { event.stopPropagation(); onCompanySelect(contact.companyId) }}>{contact.companyName}</button></td>
-                <td>{contact.role || "—"}</td>
                 <td>{contact.phones.length || contact.contactMethods?.some((method) => method.kind === "phone") ? <div className="registry-method-list">{contact.phones.map((phone) => <a key={phone} href={`tel:${phone.replace(/[^+\d]/g, "")}`} onClick={(event) => event.stopPropagation()}><Phone />{phone}</a>)}{(contact.contactMethods ?? []).filter((method) => method.kind === "phone").map((method) => <a key={method.id} href={`tel:${method.value.replace(/[^+\d]/g, "")}`} onClick={(event) => event.stopPropagation()}><Phone />{method.value}</a>)}</div> : "—"}</td>
                 <td>{contact.emails.length || contact.contactMethods?.some((method) => method.kind === "email") ? <div className="registry-method-list">{contact.emails.map((email) => <a key={email} href={`mailto:${email}`} onClick={(event) => event.stopPropagation()}><Mail />{email}</a>)}{(contact.contactMethods ?? []).filter((method) => method.kind === "email").map((method) => <a key={method.id} href={`mailto:${method.value}`} onClick={(event) => event.stopPropagation()}><Mail />{method.value}</a>)}</div> : "—"}</td>
-                <td>{contact.telegram || contact.contactMethods?.some((method) => method.kind === "messenger" && method.id !== "__telegram__") ? <div className="registry-method-list">{contact.telegram && <a href={contact.telegram.startsWith("http") ? contact.telegram : `https://t.me/${contact.telegram.replace(/^@/, "")}`} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Telegram: {contact.telegram}</a>}{(contact.contactMethods ?? []).filter((method) => method.kind === "messenger" && method.id !== "__telegram__").map((method) => <span key={method.id}>{method.provider}: {method.value}</span>)}</div> : "—"}</td>
+                <td>{contact.telegram || contact.contactMethods?.some((method) => method.kind === "messenger" && method.id !== "__telegram__") ? <div className="registry-method-list">{contact.telegram && <a href={contact.telegram.startsWith("http") ? contact.telegram : `https://t.me/${contact.telegram.replace(/^@/, "")}`} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}><span className="registry-messenger-category">Telegram:</span><span>{contact.telegram}</span></a>}{(contact.contactMethods ?? []).filter((method) => method.kind === "messenger" && method.id !== "__telegram__").map((method) => <span className="registry-messenger-item" key={method.id}><span className="registry-messenger-category">{method.provider}:</span><span>{method.value}</span></span>)}</div> : "—"}</td>
                 <td>{formatDate(contact.createdAt)}</td>
                 <td><div className="registry-creator">{contact.createdBy && <span className="table-avatar">{contact.createdBy.split(/\s+/).map((part) => part[0]).slice(0, 2).join("")}</span>}{contact.createdBy || "—"}</div></td>
               </tr>)}
