@@ -93,6 +93,12 @@ export function sections(
 ): { id: string; title: string; fields: string[]; list?: List }[] {
   return [
     {
+      id: "banking",
+      title: "Банковские реквизиты",
+      fields: [],
+      list: "accounts",
+    },
+    {
       id: "tax",
       title: "Налоговый учёт",
       fields: ["taxDate", "taxPlace", "taxOffice", "taxAddress"],
@@ -127,12 +133,6 @@ export function sections(
         "accountant",
         "accountantContact",
       ],
-    },
-    {
-      id: "banking",
-      title: "Банковские реквизиты",
-      fields: [],
-      list: "accounts",
     },
     {
       id: "licensing",

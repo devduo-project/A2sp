@@ -137,7 +137,7 @@ export function RequisitesCard({
 }) {
   const [draft, setDraft] = useState(initial),
     [edit, setEdit] = useState(false),
-    [expanded, setExpanded] = useState<string[]>([]);
+    [expanded, setExpanded] = useState<string[]>(["banking"]);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [drag, setDrag] = useState(false),
@@ -263,9 +263,18 @@ export function RequisitesCard({
             />
           </section>
         ))}
-        {!rows.length && (
+        {!rows.length && (key === "accounts" ? (
+          <Fields
+            keys={spec.fields}
+            edit={false}
+            values={{}}
+            marked={[]}
+            change={() => {}}
+
+          />
+        ) : (
           <p className="text-sm text-muted-foreground">Нет данных</p>
-        )}
+        ))}
         {edit && (
           <Button
             className="self-start"
