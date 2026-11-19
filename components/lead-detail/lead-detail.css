@@ -141,7 +141,8 @@
 .task-create-never input { accent-color: var(--primary); }
 .task-create-recurrence-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
 .task-create-recurrence-summary { margin: 8px 0 0 26px; color: var(--muted-foreground); font-size: 12px; }
-.task-create-source h3 { margin: 0 0 10px; color: var(--primary); font-size: 14px; }
+.task-create-source h3 { margin: 0 0 4px; color: var(--primary); font-size: 14px; }
+.task-create-source-description { margin: 0 0 10px; color: var(--muted-foreground); font-size: 12px; line-height: 1.5; }
 .task-create-source-types { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 0; padding: 0; border: 0; }
 .task-create-source-types label { display: inline-flex; align-items: center; gap: 7px; color: var(--primary); font-size: 13px; cursor: pointer; }
 .task-create-source-types input { accent-color: var(--primary); }
