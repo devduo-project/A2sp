@@ -414,9 +414,9 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 .lead-pipeline-item:not(:first-child):not(:last-child) .lead-pipeline-step { border-radius: 4px; }
 .lead-pipeline-step svg { flex: none; width: 14px; height: 14px; }
 .lead-pipeline-step.is-future:hover { background: oklch(1 0 0 / 0.75); color: var(--foreground); border-color: color-mix(in oklab, var(--stage-color) 45%, transparent); }
-.lead-pipeline-step.is-done { background: color-mix(in oklab, var(--stage-color) 16%, white); color: var(--foreground); }
-.lead-pipeline-step.is-done svg { color: var(--stage-color); }
-.lead-pipeline-step.is-current { background: color-mix(in oklab, var(--stage-color) 30%, white); border-color: var(--stage-color); color: var(--foreground); font-weight: 750; box-shadow: 0 4px 14px color-mix(in oklab, var(--stage-color) 30%, transparent); cursor: default; }
+.lead-pipeline-step.is-done { --stage-progress: #2E9D6B; background: color-mix(in oklab, var(--stage-progress) 14%, white); border-color: color-mix(in oklab, var(--stage-progress) 35%, transparent); color: var(--foreground); }
+.lead-pipeline-step.is-done svg { color: var(--stage-progress); stroke-width: 3; }
+.lead-pipeline-step.is-current { --stage-progress: #2E9D6B; background: color-mix(in oklab, var(--stage-progress) 32%, white); border-color: var(--stage-progress); color: var(--foreground); font-weight: 750; box-shadow: 0 4px 14px color-mix(in oklab, var(--stage-progress) 30%, transparent); cursor: default; }
 .lead-pipeline-step:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .lead-pipeline[aria-busy="true"] .lead-pipeline-step { cursor: progress; }
 .deals-placeholder { width: 100%; min-height: 60vh; flex: none; justify-content: center; align-items: center; border: 1px dashed var(--border); border-radius: 16px; background: oklch(1 0 0 / 0.35); }
