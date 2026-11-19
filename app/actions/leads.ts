@@ -19,24 +19,47 @@ async function layoutUserKey() {
   let key = store.get("crm-lead-layout-user")?.value
   if (!key) {
     key = crypto.randomUUID()
-    store.set("crm-lead-layout-user", key, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 60 * 60 * 24 * 365 })
+    // SameSite=None + Secure + Partitioned keeps the key when the CRM is opened inside an iframe (v0 preview); SameSite=Lax cookies are dropped there and every save would land under a fresh key.
+    store.set("crm-lead-layout-user", key, { httpOnly: true, sameSite: "none", secure: true, partitioned: true, path: "/", maxAge: 60 * 60 * 24 * 365 })
   }
   return key
 }
 
+async function ensureLeadCardPreferencesTable() {
+  const create = () => db.execute(sql`CREATE TABLE IF NOT EXISTS lead_card_preferences (user_key text PRIMARY KEY, config jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`)
+  try {
+    await create()
+  } catch (error) {
+    // Two concurrent CREATE TABLE IF NOT EXISTS can race on the Postgres catalog; the table exists after the winner finishes.
+    const code = (error as { code?: string })?.code
+    if (code !== "23505" && code !== "42P07") throw error
+    await create()
+  }
+}
+
 export async function getLeadCardConfig(): Promise<LeadCardConfig> {
   const userKey = await layoutUserKey()
-  await db.execute(sql`CREATE TABLE IF NOT EXISTS lead_card_preferences (user_key text PRIMARY KEY, config jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`)
+  await ensureLeadCardPreferencesTable()
   const result = await db.execute<{ config: LeadCardConfig }>(sql`SELECT config FROM lead_card_preferences WHERE user_key = ${userKey} LIMIT 1`)
   return normalizeLeadCardConfig(result.rows[0]?.config ?? defaultLeadCardConfig)
 }
 
-export async function saveLeadCardConfig(config: LeadCardConfig): Promise<LeadCardConfig> {
-  const userKey = await layoutUserKey()
-  const normalized = normalizeLeadCardConfig(config)
-  await db.execute(sql`CREATE TABLE IF NOT EXISTS lead_card_preferences (user_key text PRIMARY KEY, config jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`)
-  await db.execute(sql`INSERT INTO lead_card_preferences (user_key, config) VALUES (${userKey}, ${JSON.stringify(normalized)}::jsonb) ON CONFLICT (user_key) DO UPDATE SET config = excluded.config, updated_at = now()`)
-  return normalized
+export type SaveLeadCardConfigResult = { ok: true; config: LeadCardConfig } | { ok: false; error: string }
+
+export async function saveLeadCardConfig(config: LeadCardConfig): Promise<SaveLeadCardConfigResult> {
+  try {
+    const userKey = await layoutUserKey()
+    const normalized = normalizeLeadCardConfig(config)
+    await ensureLeadCardPreferencesTable()
+    const result = await db.execute<{ config: LeadCardConfig }>(sql`INSERT INTO lead_card_preferences (user_key, config) VALUES (${userKey}, ${JSON.stringify(normalized)}::jsonb) ON CONFLICT (user_key) DO UPDATE SET config = excluded.config, updated_at = now() RETURNING config`)
+    const stored = result.rows[0]?.config
+    if (!stored) throw new Error("База данных не подтвердила запись настроек")
+    return { ok: true, config: normalizeLeadCardConfig(stored) }
+  } catch (error) {
+    // Errors thrown from a production server action reach the client with the message stripped, so return the failure as data and log the real cause on the server.
+    console.error("[lead-card-config] save failed:", error)
+    return { ok: false, error: error instanceof Error ? error.message : "Неизвестная ошибка сохранения" }
+  }
 }
 
 export async function getLeads(): Promise<Lead[]> {
