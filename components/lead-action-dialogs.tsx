@@ -5,15 +5,13 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { createLeadContact, createLeadTask, type SavedContact } from "@/app/actions/lead-records"
-import { taskPriorities } from "@/lib/task-priorities"
+import { createLeadContact, type SavedContact } from "@/app/actions/lead-records"
 import { updateLeadFields, type LeadFieldsPatch } from "@/app/actions/leads"
 import type { Lead } from "@/components/lead-card"
 import type { QuickActionType } from "@/components/lead-quick-actions"
-import { employees } from "@/lib/employees"
 import { OwnerForm } from "@/components/lead-owner-form"
+import { TaskCreateDialog } from "@/components/lead-detail/task-create-dialog"
 
 type EditableAction = Exclude<QuickActionType, "link" | "duplicate">
 
@@ -29,7 +27,11 @@ const messageOf = (error: unknown) => (error instanceof Error && error.message ?
 
 export function LeadActionDialogs({ lead, action, onClose, onLeadUpdated, onContactCreated }: LeadActionDialogsProps) {
   const open = Boolean(lead && action)
-  const wide = action === "task" || action === "contact"
+  const wide = action === "contact"
+
+  if (lead && action === "task") {
+    return <TaskCreateDialog key={lead.id} lead={lead} open onOpenChange={(next) => !next && onClose()} onLeadUpdated={onLeadUpdated} onCreated={onClose} />
+  }
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
@@ -45,7 +47,7 @@ export function LeadActionDialogs({ lead, action, onClose, onLeadUpdated, onCont
 function ActionForm({ lead, action, onClose, onLeadUpdated, onContactCreated }: Omit<LeadActionDialogsProps, "lead" | "action"> & { lead: Lead; action: EditableAction }) {
   switch (action) {
     case "task":
-      return <TaskForm lead={lead} onClose={onClose} />
+      return null
     case "contact":
       return <ContactForm lead={lead} onClose={onClose} onCreated={onContactCreated} />
     case "name":
@@ -229,67 +231,6 @@ function AddressForm({ lead, onClose, onLeadUpdated }: { lead: Lead; onClose: ()
       </Field>
       <Field label="Дополнительно">
         <Input value={form.additional} maxLength={200} onChange={(event) => update("additional", event.target.value)} />
-      </Field>
-    </FormShell>
-  )
-}
-
-function TaskForm({ lead, onClose }: { lead: Lead; onClose: () => void }) {
-  const [form, setForm] = useState({ title: "", description: "", dueDate: "", owner: lead.owner, priority: "Средний" })
-  const [error, setError] = useState("")
-  const [pending, setPending] = useState(false)
-  const owners = [...new Set([lead.owner, ...employees].filter(Boolean))]
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (!form.title.trim()) return setError("Укажите название задачи")
-    setPending(true)
-    try {
-      await createLeadTask({ leadId: lead.id, ...form })
-      toast.success("Задача создана")
-      onClose()
-    } catch (reason) {
-      toast.error(messageOf(reason))
-      setPending(false)
-    }
-  }
-
-  return (
-    <FormShell title="Создать задачу" description={`Задача будет привязана к лиду ${lead.id}, ${lead.company}.`} onSubmit={submit} pending={pending} submitLabel="Создать задачу" onClose={onClose}>
-      <Field label="Название задачи" error={error} required>
-        <Input autoFocus value={form.title} maxLength={200} aria-invalid={Boolean(error)} onChange={(event) => { setForm({ ...form, title: event.target.value }); setError("") }} />
-      </Field>
-      <Field label="Описание">
-        <Textarea rows={3} value={form.description} maxLength={2000} onChange={(event) => setForm({ ...form, description: event.target.value })} />
-      </Field>
-      <div className="glass-row">
-        <Field label="Дата выполнения">
-          <Input type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} />
-        </Field>
-        <Field label="Приоритет">
-          <Select value={form.priority} onValueChange={(priority) => setForm({ ...form, priority })}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {taskPriorities.map((priority) => (
-                <SelectItem key={priority} value={priority}>{priority}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </div>
-      <Field label="Ответственный">
-        <Select value={form.owner} onValueChange={(owner) => setForm({ ...form, owner })}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {owners.map((owner) => (
-              <SelectItem key={owner} value={owner}>{owner}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </Field>
     </FormShell>
   )

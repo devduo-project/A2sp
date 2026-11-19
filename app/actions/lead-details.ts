@@ -135,7 +135,43 @@ function mergeTaskMeta(stored: Record<string, TaskMeta> | undefined, input: unkn
     if (!/^\d{1,10}$/.test(key)) continue
     const status = (taskStatuses as readonly string[]).includes(raw?.status as string) ? (raw.status as TaskMeta["status"]) : "Новая"
     const communicationId = clip(raw?.communicationId, 64)
-    result[key] = { status, ...(communicationId ? { communicationId } : {}) }
+    const creatorId = raw?.creatorId === "crm-prototype-user" ? "crm-prototype-user" : stored?.[key]?.creatorId
+    const executorId = clip(raw?.executorId, 120) || stored?.[key]?.executorId
+    const coExecutors = raw?.coExecutors === undefined ? stored?.[key]?.coExecutors : cleanPeople(raw.coExecutors)
+    const observers = raw?.observers === undefined ? stored?.[key]?.observers : cleanPeople(raw.observers)
+    const assigned = [executorId, ...(coExecutors ?? []), ...(observers ?? [])].filter(Boolean)
+    if (new Set(assigned).size !== assigned.length) throw new Error("Сотрудник уже назначен в другой роли")
+    const attachments = raw?.attachments === undefined
+      ? stored?.[key]?.attachments
+      : mergeFiles(stored?.[key]?.attachments, raw.attachments, { added: "Добавлено вложение к задаче", removed: "Удалено вложение из задачи" }, entries)
+    const rawSource = raw?.source
+    const sourceType = rawSource?.type === "communication" || rawSource?.type === "task" ? rawSource.type : undefined
+    const sourceId = sourceType ? clip(rawSource?.id, 64) : ""
+    const source = sourceType && sourceId ? { type: sourceType, id: sourceId } : undefined
+    const rawRecurrence = raw?.recurrence
+    let recurrence: TaskMeta["recurrence"]
+    if (rawRecurrence?.enabled === true) {
+      const frequencies = ["daily", "weekly", "monthly", "yearly"]
+      const frequency = frequencies.includes(rawRecurrence.frequency) ? rawRecurrence.frequency : "weekly"
+      const interval = Number.isInteger(rawRecurrence.interval) ? Math.min(99, Math.max(1, rawRecurrence.interval)) : 1
+      const weekdays = Array.isArray(rawRecurrence.weekdays)
+        ? [...new Set(rawRecurrence.weekdays.filter((day): day is number => Number.isInteger(day) && day >= 0 && day <= 6))]
+        : []
+      const startDate = /^\d{4}-\d{2}-\d{2}$/.test(rawRecurrence.startDate) ? rawRecurrence.startDate : new Date().toISOString().slice(0, 10)
+      const endDate = typeof rawRecurrence.endDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawRecurrence.endDate) ? rawRecurrence.endDate : ""
+      recurrence = { enabled: true, frequency, interval, weekdays, startDate, endDate }
+    }
+    result[key] = {
+      status,
+      ...(communicationId ? { communicationId } : {}),
+      ...(creatorId ? { creatorId } : {}),
+      ...(executorId ? { executorId } : {}),
+      ...(coExecutors ? { coExecutors } : {}),
+      ...(observers ? { observers } : {}),
+      ...(attachments ? { attachments } : {}),
+      ...(source ? { source } : {}),
+      ...(recurrence ? { recurrence } : {}),
+    }
     const before = stored?.[key]?.status
     if (before && before !== status) entries.push(historyEntry(`Изменён статус задачи №${key}`, before, status))
   }
@@ -236,7 +272,22 @@ export async function updateLeadDetails(leadId: string, patch: LeadDetailsPatch)
         if ((previous.observers ?? []).join(", ") !== details.observers.join(", ")) entries.push(historyEntry("Изменены наблюдатели", (previous.observers ?? []).join(", "), details.observers.join(", ")))
       }
       if (incoming.communications !== undefined) details.communications = mergeCommunications(previous.communications, incoming.communications, entries)
-      if (incoming.taskMeta !== undefined) details.taskMeta = mergeTaskMeta(previous.taskMeta, incoming.taskMeta, entries)
+      if (incoming.taskMeta !== undefined) {
+        details.taskMeta = mergeTaskMeta(previous.taskMeta, incoming.taskMeta, entries)
+        const taskRows = await tx.select({ id: leadTasks.id, owner: leadTasks.owner }).from(leadTasks).where(eq(leadTasks.leadId, leadId))
+        const ownerById = new Map(taskRows.map((task) => [String(task.id), task.owner]))
+        const communicationIds = new Set((details.communications ?? []).map((communication) => communication.id))
+        for (const [taskId, meta] of Object.entries(details.taskMeta)) {
+          const executorId = ownerById.get(taskId)
+          if (executorId === undefined) throw new Error("Задача не принадлежит этому лиду")
+          const assigned = [executorId, ...(meta.coExecutors ?? []), ...(meta.observers ?? [])].filter(Boolean)
+          if (new Set(assigned).size !== assigned.length) throw new Error("Сотрудник уже назначен в другой роли")
+          if (meta.communicationId && !communicationIds.has(meta.communicationId)) throw new Error("Коммуникация не принадлежит этому лиду")
+          if (meta.source?.type === "communication" && !communicationIds.has(meta.source.id)) throw new Error("Коммуникация не принадлежит этому лиду")
+          if (meta.source?.type === "task" && (meta.source.id === taskId || !ownerById.has(meta.source.id))) throw new Error("Выберите другую задачу этого лида")
+          meta.executorId = executorId
+        }
+      }
     }
 
     for (const note of Array.isArray(patch.notes) ? patch.notes.slice(0, 10) : []) {
