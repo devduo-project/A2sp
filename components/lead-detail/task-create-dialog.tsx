@@ -11,7 +11,7 @@ import { AttachButton, FileList } from "@/components/lead-detail/file-list"
 import { EmployeePicker, initials } from "@/components/lead-detail/employee-picker"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
@@ -62,8 +62,8 @@ export function TaskCreateDialog({
     executor: lead.owner || "",
     coExecutors: [],
     observers: [],
-    sourceType: initialCommunicationId ? "communication" : "",
-    sourceId: initialCommunicationId ?? NO_SOURCE,
+    sourceType: "",
+    sourceId: NO_SOURCE,
   }))
   const [files, setFiles] = useState<StoredFile[]>([])
   const [error, setError] = useState("")
@@ -73,7 +73,6 @@ export function TaskCreateDialog({
   const [recurrenceEnabled, setRecurrenceEnabled] = useState(false)
   const [recurrence, setRecurrence] = useState<TaskRecurrence | null>(null)
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<Frequency>("weekly")
-  const [recurrenceInterval, setRecurrenceInterval] = useState(1)
   const [recurrenceWeekdays, setRecurrenceWeekdays] = useState<number[]>([1])
   const [recurrenceStart, setRecurrenceStart] = useState(today())
   const [recurrenceEnd, setRecurrenceEnd] = useState("")
@@ -98,8 +97,11 @@ export function TaskCreateDialog({
 
   const updateForm = (patch: Partial<TaskFormState>) => setForm((current) => ({ ...current, ...patch }))
 
-  const selectSourceType = (sourceType: TaskFormState["sourceType"]) => {
-    setForm((current) => ({ ...current, sourceType, sourceId: sourceType === "communication" && initialCommunicationId ? initialCommunicationId : NO_SOURCE }))
+  const selectSourceType = (sourceType: Exclude<TaskFormState["sourceType"], "">) => {
+    setForm((current) => {
+      const nextType = current.sourceType === sourceType ? "" : sourceType
+      return { ...current, sourceType: nextType, sourceId: nextType === "communication" && initialCommunicationId ? initialCommunicationId : NO_SOURCE }
+    })
     setSourceQuery("")
     if (sourceType === "task" && tasks.length === 0) void loadTasks()
   }
@@ -110,7 +112,6 @@ export function TaskCreateDialog({
 
   const openRecurrence = (current = recurrence ?? newRecurrence()) => {
     setRecurrenceFrequency(current.frequency)
-    setRecurrenceInterval(current.interval)
     setRecurrenceWeekdays(current.weekdays)
     setRecurrenceStart(current.startDate)
     setRecurrenceEnd(current.endDate)
@@ -126,7 +127,7 @@ export function TaskCreateDialog({
       setError("Дата окончания не может быть раньше даты начала")
       return
     }
-    setRecurrence({ enabled: true, frequency: recurrenceFrequency, interval: recurrenceInterval, weekdays: recurrenceFrequency === "weekly" ? recurrenceWeekdays : [], startDate: recurrenceStart, endDate: recurrenceEnd })
+    setRecurrence({ enabled: true, frequency: recurrenceFrequency, interval: 1, weekdays: recurrenceFrequency === "weekly" ? recurrenceWeekdays : [], startDate: recurrenceStart, endDate: recurrenceEnd })
     setRecurrenceEnabled(true)
     setRecurrenceOpen(false)
     setError("")
@@ -220,11 +221,10 @@ export function TaskCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="task-create-dialog" aria-describedby="task-create-description" showCloseButton={false} onOpenAutoFocus={(event) => { event.preventDefault(); titleRef.current?.focus() }}>
+      <DialogContent className="task-create-dialog" showCloseButton={false} onOpenAutoFocus={(event) => { event.preventDefault(); titleRef.current?.focus() }}>
         <DialogClose asChild><Button type="button" variant="ghost" size="icon" className="absolute top-4 right-4" aria-label="Закрыть"><X aria-hidden="true" /></Button></DialogClose>
         <DialogHeader className="task-create-header">
           <DialogTitle ref={titleRef} tabIndex={-1}>Создать задачу</DialogTitle>
-          <DialogDescription id="task-create-description">Задача будет привязана к лиду «{lead.company}».</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="task-create-form">
           <div className="task-create-grid task-create-three-col">
@@ -289,7 +289,6 @@ export function TaskCreateDialog({
                     </SelectGroup></SelectContent>
                   </Select>
                 </label>
-                <label className="task-create-field task-create-interval"><span className="task-create-label">Интервал</span><span className="task-create-interval-control"><Input type="number" min={1} max={99} value={recurrenceInterval} onChange={(event) => setRecurrenceInterval(Math.max(1, Number(event.target.value) || 1))} /><span>{recurrenceFrequency === "daily" ? "дн." : recurrenceFrequency === "weekly" ? "нед." : recurrenceFrequency === "monthly" ? "мес." : "лет"}</span></span></label>
                 {recurrenceFrequency === "weekly" && <fieldset className="task-create-weekdays"><legend className="task-create-label">Дни недели</legend><div>{weekdays.map((day, index) => <button key={day} type="button" aria-pressed={recurrenceWeekdays.includes(index)} onClick={() => setRecurrenceWeekdays((current) => current.includes(index) ? current.filter((item) => item !== index) : [...current, index].sort())}>{day}</button>)}</div></fieldset>}
                 <label className="task-create-field"><span className="task-create-label">Дата начала</span><span className="task-create-input-icon"><CalendarDays aria-hidden="true" /><Input type="date" value={recurrenceStart} onChange={(event) => setRecurrenceStart(event.target.value)} /></span></label>
                 <label className="task-create-field"><span className="task-create-label">Дата окончания</span><span className="task-create-input-icon"><CalendarDays aria-hidden="true" /><Input type="date" value={recurrenceEnd} onChange={(event) => setRecurrenceEnd(event.target.value)} /></span><span className="task-create-never"><input type="checkbox" checked={!recurrenceEnd} onChange={(event) => setRecurrenceEnd(event.target.checked ? "" : recurrenceStart)} />Никогда</span></label>
@@ -301,10 +300,11 @@ export function TaskCreateDialog({
 
           <section className="task-create-source" aria-labelledby="task-create-source-heading">
             <h3 id="task-create-source-heading">Основание</h3>
+            <p className="task-create-source-description">Вы можете выбрать коммуникацию или другую задачу как основание для новой. Это поможет видеть связи.</p>
             <fieldset className="task-create-source-types">
               <legend className="sr-only">Тип основания</legend>
-              <label><input type="radio" name="task-source-type" checked={form.sourceType === "communication"} onChange={() => selectSourceType("communication")} />Коммуникация</label>
-              <label><input type="radio" name="task-source-type" checked={form.sourceType === "task"} onChange={() => selectSourceType("task")} />Другая задача</label>
+              <label><input type="checkbox" checked={form.sourceType === "communication"} onChange={() => selectSourceType("communication")} />Коммуникация</label>
+              <label><input type="checkbox" checked={form.sourceType === "task"} onChange={() => selectSourceType("task")} />Другая задача</label>
             </fieldset>
             {form.sourceType && (
               <div className="task-create-source-picker">
