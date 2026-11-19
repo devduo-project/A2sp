@@ -1,120 +1,14 @@
 "use client"
 
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useState } from "react"
 import { Link2, Plus } from "lucide-react"
-import { toast } from "sonner"
-import { createLeadTask } from "@/app/actions/lead-records"
 import type { LeadTaskRow } from "@/app/actions/lead-details"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import type { Lead } from "@/components/lead-card"
 import type { SaveLead } from "@/components/lead-detail/use-lead-save"
-import { employees } from "@/lib/employees"
-import { formatDateTime, taskStatuses, type Communication, type TaskStatus } from "@/lib/lead-details"
-import { taskPriorities } from "@/lib/task-priorities"
-
-const NO_COMMUNICATION = "none"
-
-export function TaskDialog({
-  lead,
-  open,
-  onOpenChange,
-  initialCommunicationId,
-  save,
-  onCreated,
-}: {
-  lead: Lead
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  initialCommunicationId?: string
-  save: SaveLead
-  onCreated: () => void
-}) {
-  const communications = lead.details?.communications ?? []
-  const [form, setForm] = useState({ title: "", description: "", dueDate: "", owner: lead.owner, priority: "Средний", communicationId: initialCommunicationId ?? NO_COMMUNICATION })
-  const [error, setError] = useState("")
-  const [pending, setPending] = useState(false)
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (!form.title.trim()) return setError("Укажите название задачи")
-    setError("")
-    setPending(true)
-    try {
-      const { id } = await createLeadTask({ leadId: lead.id, title: form.title, description: form.description, dueDate: form.dueDate, owner: form.owner, priority: form.priority })
-      const communicationId = form.communicationId === NO_COMMUNICATION ? "" : form.communicationId
-      await save({
-        notes: [`Создана задача: ${form.title.trim()}`],
-        ...(communicationId
-          ? { details: { communications: [{ id: communicationId, taskIds: [id] } as Communication], taskMeta: { ...(lead.details?.taskMeta ?? {}), [id]: { status: "Новая" as TaskStatus, communicationId } } } }
-          : {}),
-      })
-      toast.success("Задача создана")
-      onCreated()
-      onOpenChange(false)
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Не удалось создать задачу")
-    } finally {
-      setPending(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="ld-dialog">
-        <DialogHeader>
-          <DialogTitle>Новая задача</DialogTitle>
-          <DialogDescription>Задача будет привязана к лиду «{lead.company}».</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit} className="ld-form">
-          <FieldGroup>
-            <Field><FieldLabel htmlFor="ld-task-title">Название задачи</FieldLabel><Input id="ld-task-title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} maxLength={200} autoFocus /></Field>
-            <Field><FieldLabel htmlFor="ld-task-desc">Описание</FieldLabel><Textarea id="ld-task-desc" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} maxLength={2000} /></Field>
-            <div className="ld-form-grid">
-              <Field><FieldLabel htmlFor="ld-task-due">Дата и время</FieldLabel><Input id="ld-task-due" type="datetime-local" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} /></Field>
-              <Field>
-                <FieldLabel htmlFor="ld-task-owner">Ответственный</FieldLabel>
-                <Select value={form.owner} onValueChange={(owner) => setForm({ ...form, owner })}>
-                  <SelectTrigger id="ld-task-owner"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectGroup>{employees.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectGroup></SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="ld-task-priority">Приоритет</FieldLabel>
-                <Select value={form.priority} onValueChange={(priority) => setForm({ ...form, priority })}>
-                  <SelectTrigger id="ld-task-priority"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectGroup>{taskPriorities.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectGroup></SelectContent>
-                </Select>
-              </Field>
-            </div>
-            <Field>
-              <FieldLabel htmlFor="ld-task-comm">Основание: коммуникация</FieldLabel>
-              <Select value={form.communicationId} onValueChange={(communicationId) => setForm({ ...form, communicationId })}>
-                <SelectTrigger id="ld-task-comm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value={NO_COMMUNICATION}>Без связи с коммуникацией</SelectItem>
-                    {communications.map((item) => <SelectItem key={item.id} value={item.id}>{item.type}: {item.subject}</SelectItem>)}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-          </FieldGroup>
-          {error && <p role="alert" className="ld-error">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Отмена</Button>
-            <Button type="submit" disabled={pending}>{pending ? "Создание…" : "Создать задачу"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
+import { formatDateTime, taskStatuses, type TaskStatus } from "@/lib/lead-details"
 
 export function TasksTab({
   lead,
@@ -169,6 +63,7 @@ export function TasksTab({
               {tasks.map((task) => {
                 const meta = taskMeta[task.id]
                 const source = meta?.communicationId ? communications.find((item) => item.id === meta.communicationId) : undefined
+                const sourceTask = meta?.source?.type === "task" ? tasks.find((item) => String(item.id) === meta.source?.id) : undefined
                 return (
                   <tr key={task.id} id={`ld-task-${task.id}`} data-focused={focusId === task.id || undefined}>
                     <td>
@@ -177,6 +72,12 @@ export function TasksTab({
                       <div className="ld-task-tags">
                         <Badge variant="secondary">{task.priority}</Badge>
                         {source && <button type="button" className="ld-link" onClick={() => onOpenCommunication(source.id)}><Link2 aria-hidden="true" />Коммуникация: {source.subject}</button>}
+                        {sourceTask && <span className="ld-task-meta-label"><Link2 aria-hidden="true" />Основание: {sourceTask.title}</span>}
+                        {meta?.creatorId === "crm-prototype-user" && <Badge variant="outline">Постановщик: Вы</Badge>}
+                        {meta?.coExecutors?.map((name) => <Badge key={`co-${name}`} variant="outline">Соисполнитель: {name}</Badge>)}
+                        {meta?.observers?.map((name) => <Badge key={`observer-${name}`} variant="outline">Наблюдатель: {name}</Badge>)}
+                        {meta?.recurrence?.enabled && <Badge variant="outline"><span className="ld-recurrence-badge">Повтор · {meta.recurrence.frequency === "daily" ? "день" : meta.recurrence.frequency === "weekly" ? "неделя" : meta.recurrence.frequency === "monthly" ? "месяц" : "год"}</span></Badge>}
+                        {meta?.attachments?.map((file) => <Badge key={file.id} variant="outline">{file.name}</Badge>)}
                       </div>
                     </td>
                     <td suppressHydrationWarning>{task.dueDate ? formatDateTime(task.dueDate) : "—"}</td>

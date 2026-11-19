@@ -2,7 +2,6 @@
 
 import { useMemo, useState, type ComponentProps } from "react"
 import useSWR from "swr"
-import { toast } from "sonner"
 import { getLeadTasks } from "@/app/actions/lead-details"
 import { saveCompanyContactMethods, type SavedCompany } from "@/app/actions/companies"
 import type { SavedContact } from "@/app/actions/lead-records"
@@ -14,7 +13,8 @@ import { ContactsCard, CustomerCard } from "@/components/lead-detail/customer-ca
 import { HistoryTab, KpVersionsTab } from "@/components/lead-detail/kp-history-tabs"
 import { AmountCard, ObjectCard, ServiceCard } from "@/components/lead-detail/object-cards"
 import { DocumentsCard, ParticipantsCard } from "@/components/lead-detail/people-docs-cards"
-import { TaskDialog, TasksTab } from "@/components/lead-detail/tasks-tab"
+import { TasksTab } from "@/components/lead-detail/tasks-tab"
+import { TaskCreateDialog } from "@/components/lead-detail/task-create-dialog"
 import { useLeadSave, type SaveLead } from "@/components/lead-detail/use-lead-save"
 import { buildCompanyViewModels, type CompanyViewModel, type RegistryContact } from "@/lib/company-registry-data"
 import type { CompanyContactMethod } from "@/lib/db/schema"
@@ -155,13 +155,14 @@ export function LeadDetailPage({
         {tab === "history" && <HistoryTab history={details.history ?? []} />}
       </div>
       {taskDialog && (
-        <TaskDialog
+        <TaskCreateDialog
+          key={`${lead.id}-${taskDialog.communicationId ?? "new"}`}
           lead={lead}
           open
           initialCommunicationId={taskDialog.communicationId}
           onOpenChange={(open) => { if (!open) setTaskDialog(null) }}
-          save={save}
-          onCreated={() => { void mutate(); if (!taskDialog.communicationId) toast.dismiss() }}
+          onLeadUpdated={onLeadUpdated}
+          onCreated={() => { void mutate() }}
         />
       )}
     </div>

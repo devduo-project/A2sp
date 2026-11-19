@@ -20,7 +20,26 @@ export type Communication = {
   taskIds: number[]
 }
 
-export type TaskMeta = { status: TaskStatus; communicationId?: string }
+export type TaskSource = { type: "communication" | "task"; id: string }
+export type TaskRecurrence = {
+  enabled: boolean
+  frequency: "daily" | "weekly" | "monthly" | "yearly"
+  interval: number
+  weekdays: number[]
+  startDate: string
+  endDate: string
+}
+export type TaskMeta = {
+  status: TaskStatus
+  communicationId?: string
+  creatorId?: string
+  executorId?: string
+  coExecutors?: string[]
+  observers?: string[]
+  attachments?: StoredFile[]
+  source?: TaskSource
+  recurrence?: TaskRecurrence
+}
 
 export type HistoryEntry = { id: string; at: string; actor: string; text: string; from?: string; to?: string }
 
