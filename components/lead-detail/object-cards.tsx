@@ -134,11 +134,9 @@ export function ObjectCard({ lead, save }: { lead: Lead; save: SaveLead }) {
       <dl className="ld-info-grid">
         <InfoRow label="Название объекта">{text(lead.objectName)}</InfoRow>
         <InfoRow label="Адрес">{formatAddress(lead.address) || "—"}</InfoRow>
-        <InfoRow label="Площадь">{formatMeasure(details.area, "м²")}</InfoRow>
+        <InfoRow label="Площадь объекта (м²)">{formatMeasure(details.area, "м²")}</InfoRow>
         <InfoRow label="Этажность">{text(details.floors)}</InfoRow>
-        <InfoRow label="Строительный объём">{formatMeasure(details.volume, "м³")}</InfoRow>
-        <InfoRow label="Стоимость за 1 м²">{formatRubles(unitCost(amount, area))}</InfoRow>
-        <InfoRow label="Стоимость за 1 м³">{formatRubles(unitCost(amount, volume))}</InfoRow>
+        <InfoRow label="Строительный объём (м³)">{formatMeasure(details.volume, "м³")}</InfoRow>
         <InfoRow label="Проектная документация">{text(details.projectDocumentation)}</InfoRow>
         <InfoRow label="Данные предыдущего обследования">{text(details.previousSurvey)}</InfoRow>
         <InfoRow label="Комментарий">{text(details.comment)}</InfoRow>
@@ -161,6 +159,9 @@ export function AmountCard({ lead, save }: { lead: Lead; save: SaveLead }) {
   const [error, setError] = useState("")
   const [pending, setPending] = useState(false)
   const amount = amountFromValue(lead.value)
+  const details = lead.details ?? {}
+  const costPerSquareMeter = formatRubles(unitCost(amount, parsePositive(details.area)))
+  const costPerCubicMeter = formatRubles(unitCost(amount, parsePositive(details.volume)))
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -185,10 +186,16 @@ export function AmountCard({ lead, save }: { lead: Lead; save: SaveLead }) {
           </div>
         </form>
       ) : (
-        <div className="ld-amount">
-          <strong>{formatRubles(amount)}</strong>
-          <Button type="button" variant="ghost" size="icon" aria-label="Изменить сумму расчёта" onClick={() => { setDraft(amount === null ? "" : String(amount)); setEditing(true) }}><Pencil /></Button>
-        </div>
+        <>
+          <div className="ld-amount">
+            <div className="ld-amount-total"><span>Общая сумма</span><strong>{formatRubles(amount)}</strong></div>
+            <Button type="button" variant="ghost" size="icon" aria-label="Изменить сумму расчёта" onClick={() => { setDraft(amount === null ? "" : String(amount)); setEditing(true) }}><Pencil /></Button>
+          </div>
+          <dl className="ld-unit-costs">
+            <InfoRow label="Стоимость за 1 м²">{costPerSquareMeter === "—" ? "—" : `${costPerSquareMeter}/м²`}</InfoRow>
+            <InfoRow label="Стоимость за 1 м³">{costPerCubicMeter === "—" ? "—" : `${costPerCubicMeter}/м³`}</InfoRow>
+          </dl>
+        </>
       )}
     </CardShell>
   )
