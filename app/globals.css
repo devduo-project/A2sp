@@ -482,3 +482,77 @@ body:has([role="dialog"]) .floating-navbar-slot { z-index: 40; }
 @media(max-width:640px){.company-value-row{align-items:flex-start;flex-direction:column}.company-value-actions{width:100%;justify-content:flex-end}.company-value-edit{flex-wrap:wrap}.company-value-edit .input{flex-basis:100%}}
 .lead-object-name{padding:0;border:0;background:transparent;font-family:inherit;font-weight:inherit;text-align:left;cursor:pointer}.lead-object-name:hover{text-decoration:underline;text-decoration-color:rgba(77,99,128,.45);text-underline-offset:2px}.lead-address-icon{width:34px;height:34px;margin:-8px;border-radius:9px;transition:background-color .16s ease,color .16s ease}.lead-address-icon:hover{background:rgba(49,95,192,.08)}.address-modal-content{align-items:stretch;flex-direction:column;gap:14px}.address-modal-content>div>strong{display:block;margin-bottom:4px;color:#718198;font-size:12px;font-weight:600}.address-modal-content>div>p{font-size:15px;font-weight:600}.address-edit-form{display:flex;flex-direction:column;gap:8px}.address-edit-form>label{color:#52627a;font-size:12px;font-weight:600}.address-modal-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px}.contact-method-add-wrap{position:relative}.contact-method-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:5;display:grid;min-width:150px;padding:5px;border:1px solid rgba(132,153,190,.3);border-radius:10px;background:#fff;box-shadow:0 10px 28px rgba(7,25,56,.16)}.contact-method-menu button{padding:9px 10px;border:0;border-radius:6px;background:transparent;color:#26364f;text-align:left;cursor:pointer}.contact-method-menu button:hover{background:#eef3fa}
 .lead-contact-methods{display:grid;gap:10px;padding:13px;border:1px solid rgba(111,134,172,.2);border-radius:12px;background:rgba(235,242,250,.55)}.lead-contact-methods-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.lead-contact-methods-heading strong{font-size:13px}.lead-contact-method-picker{display:flex;flex-wrap:wrap;gap:6px;padding:6px;border-radius:10px;background:rgba(255,255,255,.72)}.lead-contact-method-row{display:flex;align-items:flex-end;gap:8px;padding-top:10px;border-top:1px solid rgba(111,134,172,.16)}.lead-contact-method-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;flex:1;min-width:0}.lead-contact-method-fields label{display:grid;gap:5px;color:var(--muted-foreground);font-size:12px}.lead-contact-method-fields select{min-width:0;height:36px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--foreground);font:inherit;font-size:13px}.contact-detail-row{flex-wrap:wrap}.contact-detail-row span{color:#254d7d;font-size:14px;font-weight:600}
+
+@media (max-width: 760px) {
+  .crm-shell { min-width: 0; min-height: 100dvh; flex-direction: column; }
+  .sidebar, .sidebar-collapsed { position: relative; z-index: 5; width: 100%; min-height: auto; flex: 0 0 auto; align-items: stretch; gap: 10px; padding: 10px 12px 8px; border-right: 0; border-bottom: 1px solid oklch(1 0 0 / .18); box-shadow: 0 8px 24px oklch(.2 .08 250 / .12); }
+  .brand { min-height: 34px; gap: 8px; }
+  .brand .icon-button { width: 34px; height: 34px; }
+  .brand-logo strong { font-size: 16px; }
+  .nav-list, .nav-list.other-closed { flex-direction: row; align-items: center; gap: 5px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: 0 0 3px; }
+  .nav-list::-webkit-scrollbar { display: none; }
+  .nav-group-label, .nav-group-toggle { display: none; }
+  .nav-item, .sidebar-collapsed .nav-item { width: auto; min-width: max-content; height: 38px; justify-content: flex-start; gap: 7px; padding: 0 10px; border-radius: 10px; font-size: 12px; }
+  .nav-item svg { width: 16px; height: 16px; flex: none; }
+  .nav-list.other-closed .other-section-item { display: flex; }
+  .sidebar-bottom { display: none; }
+  .workspace { width: 100%; padding: 16px 14px 32px; overflow-x: hidden; }
+  .topbar { align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+  .topbar h1 { font-size: 23px; line-height: 1.15; }
+  .top-actions { gap: 6px; }
+  .toolbar { gap: 12px; margin-bottom: 16px; }
+  .tabs { width: 100%; gap: 18px; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { flex: none; white-space: nowrap; }
+  .toolbar-actions { flex-wrap: wrap; gap: 7px; padding-bottom: 4px; }
+  .search { width: 100%; flex-basis: 100%; min-height: 40px; }
+  .deals-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .deal-card { min-height: 0; padding: 16px; }
+  .deal-card h2 { margin-top: 14px; }
+  .pipeline { gap: 10px; padding: 0 0 12px; scroll-snap-type: x proximity; }
+  .pipeline-column { width: min(84vw, 310px); min-width: min(84vw, 310px); max-width: min(84vw, 310px); height: auto; min-height: 300px; max-height: calc(100dvh - 190px); scroll-snap-align: start; }
+  .leads-table-shell { padding: 0 0 14px; }
+  .detail-shell { min-width: 0; width: 100%; min-height: 100dvh; padding: 16px 14px 32px; overflow-x: hidden; }
+  .detail-header { align-items: flex-start; gap: 12px; padding-bottom: 16px; }
+  .detail-title { min-width: 0; width: 100%; }
+  .detail-title h1 { font-size: 20px; overflow-wrap: anywhere; }
+  .detail-actions { flex-wrap: wrap; gap: 6px; padding-bottom: 0; }
+  .detail-tabs { gap: 20px; overflow-x: auto; scrollbar-width: none; }
+  .detail-tabs::-webkit-scrollbar { display: none; }
+  .detail-tabs button { flex: none; white-space: nowrap; }
+  .detail-content { padding-top: 16px; }
+  .detail-grid, .detail-grid .object-fields { grid-template-columns: minmax(0, 1fr); }
+  .detail-card { min-width: 0; padding: 16px; }
+  .object-fields { gap: 0; }
+  .section-heading { align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .registry-toolbar { align-items: stretch; margin-inline: 0; }
+  .registry-search { width: 100%; }
+  .registry-filters { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px; }
+  .registry-filter-select { flex: 0 0 auto; max-width: 170px; }
+  .contacts-registry-page .registry-contact-summary, .companies-registry-page .registry-contact-summary { margin-inline: 0; }
+}
+
+@media (max-width: 480px) {
+  .workspace { padding: 14px 10px 28px; }
+  .sidebar, .sidebar-collapsed { padding-inline: 10px; }
+  .topbar { flex-direction: column; }
+  .topbar h1 { font-size: 21px; }
+  .top-actions { align-self: flex-end; }
+  .toolbar-actions > button { min-height: 36px; }
+  .pipeline-column { width: 88vw; min-width: 88vw; max-width: 88vw; }
+  .lead-card { padding: 12px; }
+  .crm-switcher { width: 100%; }
+  .crm-switcher button { min-width: 0; width: 50%; min-height: 44px; padding: 9px 10px; font-size: 14px; }
+  .crm-switcher button span { font-size: 15px; }
+  .view-toggle button { min-width: 0; padding-inline: 9px; }
+  .detail-shell { padding: 12px 10px 28px; }
+  .ld-tabs button { padding: 9px 10px; font-size: 13px; }
+  .ld-card { padding: 14px; }
+  .ld-info-grid { grid-template-columns: minmax(0, 1fr); }
+  .ld-card-head { align-items: flex-start; flex-wrap: wrap; }
+  .ld-card-actions { flex-wrap: wrap; }
+  .ld-button-row { flex-wrap: wrap; }
+  .task-create-dialog { width: calc(100vw - 12px); max-height: 96dvh; padding: 14px; }
+  .company-value-row { padding: 12px; }
+  .account-menu { right: -4px; width: min(260px, calc(100vw - 24px)); }
+}
