@@ -30,7 +30,7 @@ export function CompanyMethodsManager({
     setEditing(null)
     setKind(nextKind)
     setLabel("")
-    setValue("")
+    setValue(nextKind === "phone" ? "+7" : "")
     setError("")
   }
 
@@ -39,7 +39,7 @@ export function CompanyMethodsManager({
     setEditing(method)
     setKind(method.kind)
     setLabel(method.label)
-    setValue(method.value)
+    setValue(method.kind === "phone" ? method.value || "+7" : method.value)
     setError("")
   }
 

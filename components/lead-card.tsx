@@ -109,12 +109,12 @@ function formatRubles(value: string) {
 }
 
 function ContactForm({ contact, onSave, onCancel }: { contact?: ContactRecord; onSave: (contact: ContactRecord) => void; onCancel: () => void }) {
-  const [form, setForm] = useState(contact ?? { id: -Date.now(), name: "", role: "", phone: "", email: "", telegram: "", primary: false, manager: "" })
+  const [form, setForm] = useState(contact ? { ...contact, phone: contact.phone || "+7" } : { id: -Date.now(), name: "", role: "", phone: "+7", email: "", telegram: "", primary: false, manager: "" })
   const [methods, setMethods] = useState<ContactMethod[]>(contact?.contactMethods ?? [])
   const [addingType, setAddingType] = useState(false)
   const update = (key: keyof ContactRecord, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }))
   const addMethod = (kind: ContactMethod["kind"]) => {
-    setMethods((current) => [...current, { id: crypto.randomUUID(), kind, provider: kind === "messenger" ? "Telegram" : undefined, value: "" }])
+    setMethods((current) => [...current, { id: crypto.randomUUID(), kind, provider: kind === "messenger" ? "Telegram" : undefined, value: kind === "phone" ? "+7" : "" }])
     setAddingType(false)
   }
   const updateMethod = (id: string, patch: Partial<ContactMethod>) => setMethods((current) => current.map((method) => method.id === id ? { ...method, ...patch } : method))
@@ -138,7 +138,7 @@ function ContactForm({ contact, onSave, onCancel }: { contact?: ContactRecord; o
       {addingType && <div className="lead-contact-method-picker" role="group" aria-label="Выберите тип связи"><Button type="button" size="sm" variant="ghost" onClick={() => addMethod("messenger")}>Мессенджер</Button><Button type="button" size="sm" variant="ghost" onClick={() => addMethod("phone")}>Телефон</Button><Button type="button" size="sm" variant="ghost" onClick={() => addMethod("email")}>Email</Button></div>}
       {methods.map((method) => <div className="lead-contact-method-row" key={method.id}>
         <div className="lead-contact-method-fields">
-          <label>Тип<select aria-label="Тип способа связи" value={method.kind} onChange={(event) => updateMethod(method.id, { kind: event.target.value as ContactMethod["kind"], provider: event.target.value === "messenger" ? "Telegram" : undefined })}><option value="messenger">Мессенджер</option><option value="phone">Телефон</option><option value="email">Email</option></select></label>
+          <label>Тип<select aria-label="Тип способа связи" value={method.kind} onChange={(event) => { const kind = event.target.value as ContactMethod["kind"]; updateMethod(method.id, { kind, provider: kind === "messenger" ? "Telegram" : undefined, value: kind === "phone" && !method.value ? "+7" : method.value }) }}><option value="messenger">Мессенджер</option><option value="phone">Телефон</option><option value="email">Email</option></select></label>
           {method.kind === "messenger" && <label>Платформа<select aria-label="Платформа мессенджера" value={method.provider ?? "Telegram"} onChange={(event) => updateMethod(method.id, { provider: event.target.value })}><option>Telegram</option><option>WhatsApp</option><option>MAX</option><option>Viber</option><option>Skype</option><option>Другое</option></select></label>}
           <label>{method.kind === "messenger" ? "Username, номер или ссылка" : method.kind === "phone" ? "Номер телефона" : "Email"}<Input aria-label={method.kind === "messenger" ? "Username, номер или ссылка" : method.kind === "phone" ? "Номер дополнительного телефона" : "Дополнительный email"} type={method.kind === "phone" ? "tel" : method.kind === "email" ? "email" : "text"} value={method.value} onChange={(event) => updateMethod(method.id, { value: event.target.value })} placeholder={method.kind === "phone" ? "+7 ..." : method.kind === "email" ? "name@example.com" : "@username или ссылка"} /></label>
         </div>

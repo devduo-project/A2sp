@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react"
 import { Building2, CircleDollarSign, Package, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -57,21 +57,63 @@ export function ServiceCard({ lead, save }: { lead: Lead; save: SaveLead }) {
   )
 }
 
+function normalizeNumericInput(value: string): string {
+  const sanitized = value.replace(/,/g, ".").replace(/[^\d.]/g, "")
+  const decimalIndex = sanitized.indexOf(".")
+  if (decimalIndex === -1) return sanitized
+  return `${sanitized.slice(0, decimalIndex)}.${sanitized.slice(decimalIndex + 1).replace(/\./g, "")}`
+}
+
+function formatNumericInput(value: string): string {
+  const normalized = normalizeNumericInput(value)
+  const decimalIndex = normalized.indexOf(".")
+  const integer = decimalIndex === -1 ? normalized : normalized.slice(0, decimalIndex)
+  const fraction = decimalIndex === -1 ? "" : normalized.slice(decimalIndex + 1)
+  const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+  return decimalIndex === -1 ? grouped : `${grouped}.${fraction}`
+}
+
+function cursorPositionForCharacters(value: string, characterCount: number): number {
+  if (characterCount === 0) return 0
+  let count = 0
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] !== " ") count += 1
+    if (count === characterCount) return index + 1
+  }
+  return value.length
+}
+
 function ObjectEditDialog({ lead, open, onOpenChange, save }: { lead: Lead; open: boolean; onOpenChange: (open: boolean) => void; save: SaveLead }) {
   const details = lead.details ?? {}
   const [form, setForm] = useState({
     objectName: lead.objectName ?? "",
     address: formatAddress(lead.address),
-    area: details.area ?? "",
+    area: formatNumericInput(details.area ?? ""),
     floors: details.floors ?? "",
-    volume: details.volume ?? "",
+    volume: formatNumericInput(details.volume ?? ""),
     projectDocumentation: details.projectDocumentation ?? "",
     previousSurvey: details.previousSurvey ?? "",
     comment: details.comment ?? "",
   })
   const [error, setError] = useState("")
   const [pending, setPending] = useState(false)
+  const activeNumericInput = useRef<HTMLInputElement | null>(null)
+  const pendingCaret = useRef<number | null>(null)
   const set = (key: keyof typeof form) => (event: { target: { value: string } }) => setForm((current) => ({ ...current, [key]: event.target.value }))
+  const setNumeric = (key: "area" | "volume") => (event: ChangeEvent<HTMLInputElement>) => {
+    const { value, selectionStart } = event.currentTarget
+    const prefix = normalizeNumericInput(value.slice(0, selectionStart ?? value.length))
+    const formatted = formatNumericInput(value)
+    pendingCaret.current = cursorPositionForCharacters(formatted, prefix.length)
+    activeNumericInput.current = event.currentTarget
+    setForm((current) => ({ ...current, [key]: formatted }))
+  }
+
+  useLayoutEffect(() => {
+    if (pendingCaret.current === null) return
+    activeNumericInput.current?.setSelectionRange(pendingCaret.current, pendingCaret.current)
+    pendingCaret.current = null
+  }, [form])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -80,7 +122,8 @@ function ObjectEditDialog({ lead, open, onOpenChange, save }: { lead: Lead; open
     setError("")
     setPending(true)
     const { objectName, address, ...rest } = form
-    const saved = await save({ objectName, address, details: rest }, "Данные объекта сохранены")
+    const normalizeForSave = (value: string) => normalizeNumericInput(value).replace(/^\./, "0.").replace(/\.$/, "")
+    const saved = await save({ objectName, address, details: { ...rest, area: normalizeForSave(rest.area), volume: normalizeForSave(rest.volume) } }, "Данные объекта сохранены")
     setPending(false)
     if (saved) onOpenChange(false)
   }
@@ -97,9 +140,9 @@ function ObjectEditDialog({ lead, open, onOpenChange, save }: { lead: Lead; open
             <Field><FieldLabel htmlFor="ld-object-name">Название объекта</FieldLabel><Input id="ld-object-name" value={form.objectName} onChange={set("objectName")} maxLength={200} /></Field>
             <Field><FieldLabel htmlFor="ld-object-address">Адрес</FieldLabel><Input id="ld-object-address" value={form.address} onChange={set("address")} maxLength={500} /></Field>
             <div className="ld-form-grid">
-              <Field><FieldLabel htmlFor="ld-area">Площадь, м²</FieldLabel><Input id="ld-area" inputMode="decimal" value={form.area} onChange={set("area")} /></Field>
+              <Field><FieldLabel htmlFor="ld-area">Площадь, м²</FieldLabel><Input id="ld-area" inputMode="decimal" value={form.area} onChange={setNumeric("area")} /></Field>
               <Field><FieldLabel htmlFor="ld-floors">Этажность</FieldLabel><Input id="ld-floors" inputMode="numeric" value={form.floors} onChange={set("floors")} /></Field>
-              <Field><FieldLabel htmlFor="ld-volume">Строительный объём, м³</FieldLabel><Input id="ld-volume" inputMode="decimal" value={form.volume} onChange={set("volume")} /></Field>
+              <Field><FieldLabel htmlFor="ld-volume">Строительный объём, м³</FieldLabel><Input id="ld-volume" inputMode="decimal" value={form.volume} onChange={setNumeric("volume")} /></Field>
             </div>
             <Field><FieldLabel htmlFor="ld-project-doc">Проектная документация</FieldLabel><Textarea id="ld-project-doc" value={form.projectDocumentation} onChange={set("projectDocumentation")} maxLength={2000} /></Field>
             <Field><FieldLabel htmlFor="ld-prev-survey">Данные предыдущего обследования</FieldLabel><Textarea id="ld-prev-survey" value={form.previousSurvey} onChange={set("previousSurvey")} maxLength={2000} /></Field>

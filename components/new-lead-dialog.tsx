@@ -50,10 +50,10 @@ function NewLeadForm({ onClose, onCreated }: Omit<NewLeadDialogProps, "open">) {
     otherService: "",
     value: "",
     quoteStatus: quoteStatuses[0],
-    phone: "",
+    phone: "+7",
     contactName: "",
     contactRole: "",
-    contactPhone: "",
+    contactPhone: "+7",
     contactEmail: "",
   })
   const [includeOtherRequest, setIncludeOtherRequest] = useState(false)
