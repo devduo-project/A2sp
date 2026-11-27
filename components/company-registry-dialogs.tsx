@@ -29,7 +29,7 @@ function ContactEditor({
 }) {
   const [name, setName] = useState(contact?.name ?? "")
   const [role, setRole] = useState(contact?.role ?? "")
-  const [phone, setPhone] = useState(contact?.phones[0] ?? "")
+  const [phone, setPhone] = useState(contact?.phones[0] || "+7")
   const [email, setEmail] = useState(contact?.emails[0] ?? "")
   const [telegram, setTelegram] = useState(contact?.telegram ?? "")
   const [methods, setMethods] = useState<ContactMethod[]>(() => [
@@ -44,7 +44,7 @@ function ContactEditor({
   const [pending, setPending] = useState(false)
 
   const addMethod = (kind: ContactMethod["kind"]) => {
-    setMethods((current) => [...current, { id: crypto.randomUUID(), kind, provider: kind === "messenger" ? "Telegram" : undefined, value: "" }])
+    setMethods((current) => [...current, { id: crypto.randomUUID(), kind, provider: kind === "messenger" ? "Telegram" : undefined, value: kind === "phone" ? "+7" : "" }])
     setAddingType(false)
   }
   const updateMethod = (id: string, patch: Partial<ContactMethod>) => setMethods((current) => current.map((method) => method.id === id ? { ...method, ...patch } : method))

@@ -237,7 +237,7 @@ function AddressForm({ lead, onClose, onLeadUpdated }: { lead: Lead; onClose: ()
 }
 
 function ContactForm({ lead, onClose, onCreated }: { lead: Lead; onClose: () => void; onCreated: (contact: SavedContact) => void }) {
-  const [form, setForm] = useState({ firstName: "", lastName: "", role: "", phone: "", email: "", comment: "" })
+  const [form, setForm] = useState({ firstName: "", lastName: "", role: "", phone: "+7", email: "", comment: "" })
   const [errors, setErrors] = useState<{ firstName?: string; email?: string }>({})
   const [pending, setPending] = useState(false)
   const update = (key: keyof typeof form, value: string) => { setForm((current) => ({ ...current, [key]: value })); setErrors({}) }
