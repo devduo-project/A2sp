@@ -45,7 +45,7 @@ export function TasksTab({
 
   return (
     <section className="ld-card ld-tab-card" aria-labelledby="ld-tasks-title">
-      <header className="ld-card-head">
+      <header className="ld-card-head ld-tasks-head">
         <h3 id="ld-tasks-title">Задачи по лиду</h3>
         <Button type="button" size="sm" onClick={onCreate}><Plus data-icon="inline-start" />Новая задача</Button>
       </header>
@@ -54,7 +54,7 @@ export function TasksTab({
       ) : failed ? (
         <p role="alert" className="ld-error">Не удалось загрузить задачи</p>
       ) : tasks.length === 0 ? (
-        <div className="ld-empty-block"><p>По этому лиду пока нет задач</p><Button type="button" size="sm" onClick={onCreate}><Plus data-icon="inline-start" />Создать задачу</Button></div>
+        <div className="ld-empty-block"><p>По этому лиду пока нет задач</p></div>
       ) : (
         <div className="ld-table-scroll">
           <table className="ld-table">
